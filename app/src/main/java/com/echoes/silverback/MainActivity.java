@@ -2,6 +2,9 @@ package com.echoes.silverback;
 
 import android.Manifest;
 import android.app.Activity;
+import android.app.PictureInPictureParams;
+import android.content.res.Configuration;
+import android.util.Rational;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Intent;
@@ -65,6 +68,7 @@ public class MainActivity extends Activity implements Player.Listener {
         findViewById(R.id.btn_clear).setOnClickListener(v -> { player.clearUpNext(); bumpControls(); });
 
         hideSystemBars();
+        setPictureInPictureParams(pipParams());
         if (Build.VERSION.SDK_INT >= 33
                 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 1);
@@ -114,6 +118,39 @@ public class MainActivity extends Activity implements Player.Listener {
         super.onStop();
     }
 
+    /** Mini window keeps the whole stage at the overlay's shape. */
+    private PictureInPictureParams pipParams() {
+        PictureInPictureParams.Builder b = new PictureInPictureParams.Builder()
+                .setAspectRatio(new Rational(1672, 941));
+        if (Build.VERSION.SDK_INT >= 31) {
+            b.setAutoEnterEnabled(true);
+            b.setSeamlessResizeEnabled(false);
+        }
+        return b.build();
+    }
+
+    @Override
+    protected void onUserLeaveHint() {
+        super.onUserLeaveHint();
+        if (Build.VERSION.SDK_INT < 31) {
+            try {
+                enterPictureInPictureMode(pipParams());
+            } catch (Exception ignored) {
+            }
+        }
+    }
+
+    @Override
+    public void onPictureInPictureModeChanged(boolean inPip, Configuration newConfig) {
+        super.onPictureInPictureModeChanged(inPip, newConfig);
+        if (inPip) {
+            handler.removeCallbacks(hideControls);
+            controls.setVisibility(View.GONE);
+        } else {
+            hideSystemBars();
+        }
+    }
+
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
@@ -161,6 +198,7 @@ public class MainActivity extends Activity implements Player.Listener {
     }
 
     private void toggleControls() {
+        if (isInPictureInPictureMode()) return;
         if (controls.getVisibility() == View.VISIBLE) {
             handler.removeCallbacks(hideControls);
             controls.setVisibility(View.GONE);
