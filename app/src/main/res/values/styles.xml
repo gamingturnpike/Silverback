@@ -11,16 +11,16 @@
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:layout_margin">4px</item>
-        <item name="android:paddingStart">20px</item>
-        <item name="android:paddingEnd">20px</item>
+        <item name="android:paddingStart">15px</item>
+        <item name="android:paddingEnd">15px</item>
         <item name="android:paddingTop">12px</item>
         <item name="android:paddingBottom">12px</item>
         <item name="android:background">@drawable/button_bg</item>
         <item name="android:clickable">true</item>
         <item name="android:focusable">true</item>
         <item name="android:textColor">#FFFFFF</item>
-        <item name="android:textSize">22px</item>
+        <item name="android:textSize">21px</item>
         <item name="android:textStyle">bold</item>
-        <item name="android:letterSpacing">0.1</item>
+        <item name="android:letterSpacing">0.06</item>
     </style>
 </resources>

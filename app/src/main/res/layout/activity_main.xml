@@ -187,6 +187,7 @@
             <TextView android:id="@+id/btn_skip" style="@style/StageButton" android:text="SKIP" />
             <TextView android:id="@+id/btn_debug" style="@style/StageButton" android:text="DEBUG" />
             <TextView android:id="@+id/btn_mini" style="@style/StageButton" android:text="MINI" />
+            <TextView android:id="@+id/btn_discord" style="@style/StageButton" android:text="DISCORD" />
             <TextView android:id="@+id/btn_paste" style="@style/StageButton" android:text="PASTE LINK" />
             <TextView android:id="@+id/btn_clear" style="@style/StageButton" android:text="CLEAR UP NEXT" />
         </LinearLayout>

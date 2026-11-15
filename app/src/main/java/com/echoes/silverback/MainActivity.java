@@ -2,6 +2,10 @@ package com.echoes.silverback;
 
 import android.Manifest;
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.text.InputType;
+import android.widget.EditText;
+import android.widget.LinearLayout;
 import android.app.PictureInPictureParams;
 import android.content.res.Configuration;
 import android.util.Rational;
@@ -80,6 +84,7 @@ public class MainActivity extends Activity implements Player.Listener {
         btnPlay.setOnClickListener(v -> { player.togglePause(); bumpControls(); });
         findViewById(R.id.btn_skip).setOnClickListener(v -> { player.playNext(); bumpControls(); });
         findViewById(R.id.btn_mini).setOnClickListener(v -> goMini());
+        findViewById(R.id.btn_discord).setOnClickListener(v -> discordSettings());
         findViewById(R.id.btn_paste).setOnClickListener(v -> { pasteLink(); bumpControls(); });
         findViewById(R.id.btn_clear).setOnClickListener(v -> { player.clearUpNext(); bumpControls(); });
 
@@ -90,6 +95,7 @@ public class MainActivity extends Activity implements Player.Listener {
                 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 1);
         }
+        DiscordWatcher.get(this).startIfEnabled();
         if (state == null) handleShare(getIntent());
     }
 
@@ -148,6 +154,36 @@ public class MainActivity extends Activity implements Player.Listener {
         WebView w = player.engineView();
         if (w.getParent() instanceof ViewGroup) ((ViewGroup) w.getParent()).removeView(w);
         super.onDestroy();
+    }
+
+    private void discordSettings() {
+        DiscordWatcher dw = DiscordWatcher.get(this);
+        int pad = (int) (20 * getResources().getDisplayMetrics().density);
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(pad, pad / 2, pad, 0);
+        EditText token = new EditText(this);
+        token.setHint("Bot token");
+        token.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        token.setText(dw.token());
+        EditText channel = new EditText(this);
+        channel.setHint("Channel ID");
+        channel.setInputType(InputType.TYPE_CLASS_NUMBER);
+        channel.setText(dw.channel());
+        box.addView(token);
+        box.addView(channel);
+        String status = !dw.isRunning() ? "Off" : dw.isConnected() ? "On — connected" : "On — connecting";
+        new AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
+                .setTitle("Discord link watcher")
+                .setMessage("Status: " + status + "\nSuno links posted in this channel go straight into the queue.")
+                .setView(box)
+                .setPositiveButton("Save & connect", (d, w) -> {
+                    dw.save(token.getText().toString().trim(), channel.getText().toString().trim());
+                    dw.start();
+                })
+                .setNeutralButton("Turn off", (d, w) -> dw.turnOff())
+                .setNegativeButton("Cancel", null)
+                .show();
     }
 
     private void goMini() {

@@ -52,7 +52,8 @@ public class PlayerService extends Service {
         return new Notification.Builder(c, CHANNEL)
                 .setSmallIcon(R.drawable.ic_note)
                 .setContentTitle(s != null ? s.title : "SilverBack")
-                .setContentText(s != null ? s.artist : "")
+                .setContentText(s != null ? s.artist
+                        : DiscordWatcher.get(c).isRunning() ? "Watching Discord for Suno links" : "")
                 .setContentIntent(pi)
                 .setOngoing(true)
                 .build();

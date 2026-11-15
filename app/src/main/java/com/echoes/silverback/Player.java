@@ -172,7 +172,8 @@ public final class Player {
             if (web != null) web.loadUrl("about:blank");
             save();
             changed();
-            PlayerService.stop(ctx);
+            if (DiscordWatcher.get(ctx).isRunning()) PlayerService.updateIfRunning(ctx);
+            else PlayerService.stop(ctx);
             return;
         }
         current = queue.remove(0);
