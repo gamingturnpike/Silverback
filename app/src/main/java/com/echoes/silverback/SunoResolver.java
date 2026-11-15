@@ -65,12 +65,15 @@ final class SunoResolver {
     }
 
     /** Rig-Radio song pages (rig-radio.ai/songs/ID) publish a direct MP3 in og:audio. */
+    private static final String DESKTOP_UA =
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36";
+
     private static Song resolveRigRadio(String link) throws IOException {
         HttpURLConnection c = (HttpURLConnection) new URL(link).openConnection();
         c.setInstanceFollowRedirects(true);
         c.setConnectTimeout(10000);
         c.setReadTimeout(15000);
-        c.setRequestProperty("User-Agent", UA);
+        c.setRequestProperty("User-Agent", DESKTOP_UA);
         c.setRequestProperty("Accept", "text/html");
         String html;
         try {
@@ -104,7 +107,15 @@ final class SunoResolver {
             }
         }
         if (title == null || title.isEmpty()) title = "Rig-Radio track";
-        Song s = new Song(link, id, title, artist, meta(html, "og:image"));
+        String image = meta(html, "og:image");
+        if (image == null) image = meta(html, "twitter:image");
+        if (image == null) {
+            Matcher art = Pattern.compile("https://[a-z0-9.-]+/storage/v1/object/public/creator-artwork/[^\"'\\s)]+\\.(?:png|jpe?g|webp)",
+                    Pattern.CASE_INSENSITIVE).matcher(html);
+            if (art.find()) image = art.group();
+        }
+        if (image != null) image = image.replace("&amp;", "&");
+        Song s = new Song(link, id, title, artist, image);
         s.directAudio = audio;
         return s;
     }
@@ -185,8 +196,8 @@ final class SunoResolver {
         try {
             HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
             c.setConnectTimeout(10000);
-            c.setReadTimeout(15000);
-            c.setRequestProperty("User-Agent", UA);
+            c.setReadTimeout(30000);
+            c.setRequestProperty("User-Agent", DESKTOP_UA);
             byte[] data;
             try {
                 data = read(c.getInputStream(), 15_000_000);
@@ -201,7 +212,7 @@ final class SunoResolver {
             BitmapFactory.Options opts = new BitmapFactory.Options();
             opts.inSampleSize = sample;
             return BitmapFactory.decodeByteArray(data, 0, data.length, opts);
-        } catch (Exception e) {
+        } catch (Throwable e) {
             return null;
         }
     }
