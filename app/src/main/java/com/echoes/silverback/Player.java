@@ -347,12 +347,12 @@ public final class Player {
      */
     private static String wantJs(boolean play) {
         String w = play ? "true" : "false";
-        return "(function(want){window.__sbUser=1;"
+        return "(function(want){window.__sbUser=1;clearTimeout(window.__sbT);"
                 + "function ok(){var x=document.querySelector('audio');return x&&(want?!x.paused:x.paused);}"
                 + "if(ok()){SilverBack.log('Already '+(want?'playing':'paused'));return;}"
                 + "var a=document.querySelector('audio');var b=document.querySelector('button');"
                 + "if(b){b.click();}else if(a){if(want)a.play();else a.pause();}"
-                + "setTimeout(function(){var x=document.querySelector('audio');"
+                + "clearTimeout(window.__sbT);window.__sbT=setTimeout(function(){var x=document.querySelector('audio');"
                 + "if(x&&!ok()){if(want)x.play();else x.pause();SilverBack.log('Suno button slow, set audio directly');}"
                 + "SilverBack.log('Now '+(x?(x.paused?'paused':'playing'):'no audio'));},2000);})(" + w + ")";
     }
