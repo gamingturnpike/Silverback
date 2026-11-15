@@ -326,6 +326,27 @@ public final class Player {
         changed();
     }
 
+    public void move(int from, int to) {
+        if (from < 0 || from >= queue.size() || to < 0 || to >= queue.size()) return;
+        queue.add(to, queue.remove(from));
+        save();
+        changed();
+    }
+
+    public void remove(int i) {
+        if (i < 0 || i >= queue.size()) return;
+        queue.remove(i);
+        save();
+        changed();
+    }
+
+    /** Jumps straight to this song. */
+    public void playNow(int i) {
+        if (i < 0 || i >= queue.size()) return;
+        queue.add(0, queue.remove(i));
+        playNext();
+    }
+
     public void clearUpNext() {
         queue.clear();
         save();

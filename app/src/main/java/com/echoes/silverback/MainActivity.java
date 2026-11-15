@@ -191,7 +191,11 @@ public class MainActivity extends Activity implements Player.Listener {
             enterPictureInPictureMode(pipParams());
         } catch (Exception e) {
             Toast.makeText(this, "Turn on Picture-in-picture for SilverBack in Settings", Toast.LENGTH_LONG).show();
+            return;
         }
+        // Your queue opens as its own screen; the stream keeps showing only the stage.
+        handler.postDelayed(() -> startActivity(new Intent(this, QueueActivity.class)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)), 350);
     }
 
     /** Mini window keeps the whole stage at the overlay's shape. */
