@@ -217,15 +217,18 @@ final class DiscordWatcher {
                 public void added(Song song, int extraLinks) {
                     react(ch, msgId, "✅");
                     if (extraLinks > 0) {
-                        reply(ch, msgId, uid, "<@" + uid + "> one song at a time — I added your first link (**"
-                                + song.title + "**). Drop the next one after it plays!");
+                        int lim = Player.get(ctx).perPersonLimit();
+                        reply(ch, msgId, uid, "<@" + uid + "> " + limitText(lim) + " — I added "
+                                + (lim == 1 ? "your first link (**" + song.title + "**)" : "what fits")
+                                + ". Drop more after yours play!");
                     }
                 }
 
                 @Override
                 public void busy() {
-                    reply(ch, msgId, uid, "<@" + uid + "> one song at a time! You already have a song in the queue — "
-                            + "drop your next one after it plays.");
+                    int lim = Player.get(ctx).perPersonLimit();
+                    reply(ch, msgId, uid, "<@" + uid + "> " + limitText(lim) + "! You already have "
+                            + (lim == 1 ? "a song" : lim + " songs") + " in the queue — drop your next one after one plays.");
                 }
 
                 @Override
@@ -258,6 +261,10 @@ final class DiscordWatcher {
             main.postDelayed(this::connect, backoffMs);
             backoffMs = Math.min(backoffMs * 2, 60000);
         }
+    }
+
+    private static String limitText(int lim) {
+        return lim == 1 ? "one song at a time" : lim + " songs at a time";
     }
 
     // ---- talking back in the channel (needs Add Reactions + Send Messages) ----

@@ -341,6 +341,37 @@ public class MainActivity extends Activity implements Player.Listener {
         channel.setText(dw.channel());
         box.addView(token);
         box.addView(channel);
+
+        // Songs per person: −  N  +
+        LinearLayout lim = new LinearLayout(this);
+        lim.setOrientation(LinearLayout.HORIZONTAL);
+        lim.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        lim.setPadding(0, pad / 2, 0, 0);
+        TextView limLabel = new TextView(this);
+        limLabel.setText("Songs per person at a time");
+        limLabel.setTextSize(15);
+        lim.addView(limLabel, new LinearLayout.LayoutParams(0, -2, 1));
+        TextView minus = new TextView(this), plus = new TextView(this), num = new TextView(this);
+        minus.setText("  −  ");
+        plus.setText("  +  ");
+        for (TextView b : new TextView[]{minus, plus, num}) {
+            b.setTextSize(22);
+            b.setGravity(android.view.Gravity.CENTER);
+        }
+        num.setText(String.valueOf(player.perPersonLimit()));
+        num.setMinWidth(pad * 2);
+        minus.setOnClickListener(v -> {
+            player.setPerPersonLimit(player.perPersonLimit() - 1);
+            num.setText(String.valueOf(player.perPersonLimit()));
+        });
+        plus.setOnClickListener(v -> {
+            player.setPerPersonLimit(player.perPersonLimit() + 1);
+            num.setText(String.valueOf(player.perPersonLimit()));
+        });
+        lim.addView(minus);
+        lim.addView(num);
+        lim.addView(plus);
+        box.addView(lim);
         String status = !dw.isRunning() ? "Off" : dw.isConnected() ? "On — connected" : "On — connecting";
         new AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
                 .setTitle("Discord link watcher  (v" + BuildConfig.VERSION_NAME + ")")

@@ -180,18 +180,26 @@ public final class Player {
         add(link, "", "");
     }
 
-    // Discord users with a link still loading
-    private final java.util.Set<String> pendingRequesters = new java.util.HashSet<>();
+    // Discord users' links still loading (user id -> how many)
+    private final java.util.Map<String, Integer> pendingRequesters = new java.util.HashMap<>();
 
-    /** True if this Discord user already has a song playing, queued, or loading. */
-    private boolean hasSong(String userId) {
-        if (pendingRequesters.contains(userId)) return true;
-        if (current != null && userId.equals(current.requesterId)) return true;
-        for (Song q : queue) if (userId.equals(q.requesterId)) return true;
-        return false;
+    /** How many songs each person may have playing/queued at once (set in the DISCORD box). */
+    public int perPersonLimit() {
+        return Math.max(1, prefs.getInt("per_person", 1));
     }
 
-    /** Links posted in Discord: one song at a time per person. */
+    public void setPerPersonLimit(int n) {
+        prefs.edit().putInt("per_person", Math.max(1, Math.min(20, n))).apply();
+    }
+
+    /** Songs this Discord user has playing, queued, or loading. */
+    private int songsFor(String userId) {
+        int n = pendingRequesters.getOrDefault(userId, 0);
+        if (current != null && userId.equals(current.requesterId)) n++;
+        for (Song q : queue) if (userId.equals(q.requesterId)) n++;
+        return n;
+    }
+
     /** What happened to a Discord request (called on the main thread). */
     public interface DiscordResult {
         void added(Song s, int extraLinks);
@@ -199,19 +207,24 @@ public final class Player {
         void failed();
     }
 
+    /** Links posted in Discord, limited to N songs per person at a time. */
     public void addFromDiscord(String text, String userId, String userName, DiscordResult result) {
         List<String> links = SunoResolver.extractLinks(text);
         if (links.isEmpty()) return;
-        if (hasSong(userId)) {
-            log("Skipped link from " + userName + " — they already have a song in the queue");
+        int room = perPersonLimit() - songsFor(userId);
+        if (room <= 0) {
+            log("Skipped link from " + userName + " — already has " + perPersonLimit() + " in the queue");
             if (result != null) result.busy();
             return;
         }
-        int extra = links.size() - 1;
-        if (extra > 0) log(userName + " posted " + links.size() + " links — only the first is used");
-        log("Link from " + userName + ": " + links.get(0));
-        pendingRequesters.add(userId);
-        add(links.get(0), userId, userName, result, extra);
+        int take = Math.min(room, links.size());
+        int extra = links.size() - take;
+        if (extra > 0) log(userName + " posted " + links.size() + " links — using " + take);
+        for (int i = 0; i < take; i++) {
+            log("Link from " + userName + ": " + links.get(i));
+            pendingRequesters.merge(userId, 1, Integer::sum);
+            add(links.get(i), userId, userName, result, i == 0 ? extra : 0);
+        }
     }
 
     private void add(String link, String reqId, String reqName) {
@@ -230,7 +243,11 @@ public final class Player {
                 log("Song info FAILED: " + SunoResolver.lastError);
             }
             main.post(() -> {
-                if (!reqId.isEmpty()) pendingRequesters.remove(reqId);
+                if (!reqId.isEmpty()) {
+                    Integer left = pendingRequesters.get(reqId);
+                    if (left == null || left <= 1) pendingRequesters.remove(reqId);
+                    else pendingRequesters.put(reqId, left - 1);
+                }
                 if (s == null) {
                     toast("Couldn't load that Suno link");
                     if (result != null) result.failed();
