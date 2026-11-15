@@ -27,13 +27,19 @@ public class StageLayout extends ViewGroup {
         setMeasuredDimension(w, h);
         float scale = Math.min(w / ART_W, h / ART_H);
         int sw = Math.round(ART_W * scale), sh = Math.round(ART_H * scale);
-        int n = getChildCount();
-        for (int i = 0; i < n - 1; i++) {
-            getChildAt(i).measure(MeasureSpec.makeMeasureSpec(sw, MeasureSpec.EXACTLY),
-                    MeasureSpec.makeMeasureSpec(sh, MeasureSpec.EXACTLY));
+        for (int i = 0; i < getChildCount(); i++) {
+            View c = getChildAt(i);
+            if (c.getId() == R.id.window) {
+                c.measure(MeasureSpec.makeMeasureSpec(DESIGN_W, MeasureSpec.EXACTLY),
+                        MeasureSpec.makeMeasureSpec(DESIGN_H, MeasureSpec.EXACTLY));
+            } else if (c.getId() == R.id.art_ui) {
+                c.measure(MeasureSpec.makeMeasureSpec((int) ART_W, MeasureSpec.EXACTLY),
+                        MeasureSpec.makeMeasureSpec((int) ART_H, MeasureSpec.EXACTLY));
+            } else {
+                c.measure(MeasureSpec.makeMeasureSpec(sw, MeasureSpec.EXACTLY),
+                        MeasureSpec.makeMeasureSpec(sh, MeasureSpec.EXACTLY));
+            }
         }
-        getChildAt(n - 1).measure(MeasureSpec.makeMeasureSpec(DESIGN_W, MeasureSpec.EXACTLY),
-                MeasureSpec.makeMeasureSpec(DESIGN_H, MeasureSpec.EXACTLY));
     }
 
     @Override
@@ -42,16 +48,27 @@ public class StageLayout extends ViewGroup {
         float scale = Math.min(w / ART_W, h / ART_H);
         int sw = Math.round(ART_W * scale), sh = Math.round(ART_H * scale);
         int ox = (w - sw) / 2, oy = (h - sh) / 2;
-        int n = getChildCount();
-        for (int i = 0; i < n - 1; i++) getChildAt(i).layout(ox, oy, ox + sw, oy + sh);
-
-        View win = getChildAt(n - 1);
-        int bx = ox + Math.round(BOX_L * scale), by = oy + Math.round(BOX_T * scale);
-        win.layout(bx, by, bx + DESIGN_W, by + DESIGN_H);
-        win.setPivotX(0);
-        win.setPivotY(0);
-        float s = (BOX_W * scale) / DESIGN_W;
-        win.setScaleX(s);
-        win.setScaleY(s);
+        for (int i = 0; i < getChildCount(); i++) {
+            View c = getChildAt(i);
+            if (c.getId() == R.id.window) {
+                // song window, scaled into the art's black screen
+                int bx = ox + Math.round(BOX_L * scale), by = oy + Math.round(BOX_T * scale);
+                c.layout(bx, by, bx + DESIGN_W, by + DESIGN_H);
+                c.setPivotX(0);
+                c.setPivotY(0);
+                float s = (BOX_W * scale) / DESIGN_W;
+                c.setScaleX(s);
+                c.setScaleY(s);
+            } else if (c.getId() == R.id.art_ui) {
+                // controls laid out in the art's own 1672x941 space, scaled with the stage
+                c.layout(ox, oy, ox + (int) ART_W, oy + (int) ART_H);
+                c.setPivotX(0);
+                c.setPivotY(0);
+                c.setScaleX(scale);
+                c.setScaleY(scale);
+            } else {
+                c.layout(ox, oy, ox + sw, oy + sh);
+            }
+        }
     }
 }
