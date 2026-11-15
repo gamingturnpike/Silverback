@@ -10,7 +10,7 @@
     <style name="StageButton">
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">wrap_content</item>
-        <item name="android:layout_margin">4px</item>
+        <item name="android:layout_margin">3px</item>
         <item name="android:paddingStart">15px</item>
         <item name="android:paddingEnd">15px</item>
         <item name="android:paddingTop">12px</item>

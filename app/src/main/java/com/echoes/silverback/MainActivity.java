@@ -91,6 +91,10 @@ public class MainActivity extends Activity implements Player.Listener {
         btnPlay.setOnClickListener(v -> { player.togglePause(); bumpControls(); });
         findViewById(R.id.btn_skip).setOnClickListener(v -> { player.skip(); bumpControls(); });
         findViewById(R.id.btn_mini).setOnClickListener(v -> goMini());
+        findViewById(R.id.btn_queue).setOnClickListener(v -> {
+            toggleQueue(true);
+            controls.setVisibility(View.GONE);
+        });
         findViewById(R.id.btn_discord).setOnClickListener(v -> discordSettings());
         findViewById(R.id.btn_paste).setOnClickListener(v -> { pasteLink(); bumpControls(); });
         findViewById(R.id.btn_clear).setOnClickListener(v -> { player.clearUpNext(); bumpControls(); });
@@ -119,7 +123,6 @@ public class MainActivity extends Activity implements Player.Listener {
     private void handleShare(Intent i) {
         if (i != null && ACTION_EXIT.equals(i.getAction())) {
             PlayerService.shutdown(this);
-            QueueActivity.closeIfOpen();
             finishAndRemoveTask();
             return;
         }
@@ -278,6 +281,22 @@ public class MainActivity extends Activity implements Player.Listener {
         handler.postDelayed(hideVol, 1500);
     }
 
+    // ---- queue panel over the right side of the stage ----
+    private QueuePanel queuePanel;
+
+    private void toggleQueue(boolean show) {
+        if (queuePanel == null) {
+            queuePanel = new QueuePanel(this, () -> toggleQueue(false));
+            int w = (int) (getResources().getDisplayMetrics().widthPixels * 0.42f);
+            FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
+                    Math.max(w, (int) (340 * getResources().getDisplayMetrics().density)),
+                    FrameLayout.LayoutParams.MATCH_PARENT, android.view.Gravity.END);
+            ((FrameLayout) findViewById(R.id.root)).addView(queuePanel, lp);
+            queuePanel.setVisibility(View.GONE);
+        }
+        queuePanel.setVisibility(show ? View.VISIBLE : View.GONE);
+    }
+
     private void goMini() {
         try {
             enterPictureInPictureMode(pipParams());
@@ -285,9 +304,7 @@ public class MainActivity extends Activity implements Player.Listener {
             Toast.makeText(this, "Turn on Picture-in-picture for SilverBack in Settings", Toast.LENGTH_LONG).show();
             return;
         }
-        // Your queue opens as its own screen; the stream keeps showing only the stage.
-        handler.postDelayed(() -> startActivity(new Intent(this, QueueActivity.class)
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)), 350);
+
     }
 
     /** Mini window keeps the whole stage at the overlay's shape. */
@@ -317,6 +334,7 @@ public class MainActivity extends Activity implements Player.Listener {
         super.onPictureInPictureModeChanged(inPip, newConfig);
         resumeStageVideo();
         if (inPip) {
+            if (queuePanel != null) queuePanel.setVisibility(View.GONE);
             handler.removeCallbacks(hideControls);
             controls.setVisibility(View.GONE);
         } else {

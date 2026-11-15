@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@android:color/black">
@@ -217,7 +218,8 @@
             <TextView android:id="@+id/btn_debug" style="@style/StageButton" android:text="DEBUG" />
             <TextView android:id="@+id/btn_mini" style="@style/StageButton" android:text="MINI" />
             <TextView android:id="@+id/btn_discord" style="@style/StageButton" android:text="DISCORD" />
-            <TextView android:id="@+id/btn_paste" style="@style/StageButton" android:text="PASTE LINK" />
+            <TextView android:id="@+id/btn_queue" style="@style/StageButton" android:text="QUEUE" />
+            <TextView android:id="@+id/btn_paste" style="@style/StageButton" android:text="PASTE" />
             <TextView android:id="@+id/btn_clear" style="@style/StageButton" android:text="CLEAR" />
             <TextView android:id="@+id/btn_vol_down" style="@style/StageButton" android:text="VOL −" />
             <TextView android:id="@+id/btn_vol_up" style="@style/StageButton" android:text="VOL +" />

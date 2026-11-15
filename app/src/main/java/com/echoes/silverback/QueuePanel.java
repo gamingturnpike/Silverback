@@ -23,19 +23,15 @@ import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-/** Your private queue screen. Opens beside the mini stage; viewers never see it. */
-public class QueueActivity extends Activity implements Player.Listener {
+/** Queue panel that slides over the right side of the stage (viewers see it instead of black). */
+public class QueuePanel extends LinearLayout implements Player.Listener {
 
     private static final int RED = Color.parseColor("#FF2430");
     private static final int BG = Color.parseColor("#0E0E10");
     private static final int CARD = Color.parseColor("#1A1A1E");
 
-    private static java.lang.ref.WeakReference<QueueActivity> open;
-
-    static void closeIfOpen() {
-        QueueActivity q = open != null ? open.get() : null;
-        if (q != null) q.finishAndRemoveTask();
-    }
+    private final android.content.Context ctx;
+    private final Runnable onClose;
 
     private Player player;
     private ImageView cover;
@@ -45,25 +41,36 @@ public class QueueActivity extends Activity implements Player.Listener {
     private QueueAdapter adapter;
     private ItemTouchHelper touch;
 
-    @Override
-    protected void onCreate(Bundle state) {
-        super.onCreate(state);
-        getWindow().setStatusBarColor(BG);
-        getWindow().setNavigationBarColor(BG);
-        player = Player.get(this);
-        open = new java.lang.ref.WeakReference<>(this);
+    public QueuePanel(android.content.Context context, Runnable onClose) {
+        super(context);
+        this.ctx = context;
+        this.onClose = onClose;
+        player = Player.get(ctx);
 
-        LinearLayout root = new LinearLayout(this);
+        LinearLayout root = this;
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(BG);
-        root.setPadding(dp(16), dp(16), dp(16), dp(8));
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(Color.argb(238, 10, 6, 8));
+        bg.setStroke(dp(2), RED);
+        bg.setCornerRadii(new float[]{dp(14), dp(14), 0, 0, 0, 0, dp(14), dp(14)});
+        root.setBackground(bg);
+        root.setPadding(dp(14), dp(12), dp(14), dp(10));
+        root.setClickable(true); // taps on the panel don't reach the stage
 
+        LinearLayout head = new LinearLayout(ctx);
+        head.setOrientation(LinearLayout.HORIZONTAL);
+        head.setGravity(Gravity.CENTER_VERTICAL);
+        root.addView(head, new LinearLayout.LayoutParams(-1, -2));
         TextView header = text("SILVERBACK QUEUE", 13, RED, true);
         header.setLetterSpacing(0.2f);
-        root.addView(header);
+        head.addView(header, new LinearLayout.LayoutParams(0, -2, 1));
+        TextView close = text("✕", 20, Color.WHITE, true);
+        close.setPadding(dp(10), dp(2), dp(4), dp(2));
+        close.setOnClickListener(v -> onClose.run());
+        head.addView(close);
 
         // Now playing card
-        LinearLayout now = new LinearLayout(this);
+        LinearLayout now = new LinearLayout(ctx);
         now.setOrientation(LinearLayout.HORIZONTAL);
         now.setGravity(Gravity.CENTER_VERTICAL);
         now.setPadding(dp(12), dp(12), dp(12), dp(12));
@@ -72,12 +79,12 @@ public class QueueActivity extends Activity implements Player.Listener {
         nlp.topMargin = dp(10);
         root.addView(now, nlp);
 
-        cover = new ImageView(this);
+        cover = new ImageView(ctx);
         cover.setScaleType(ImageView.ScaleType.CENTER_CROP);
         cover.setBackgroundColor(Color.parseColor("#2A0A0C"));
         now.addView(cover, new LinearLayout.LayoutParams(dp(64), dp(64)));
 
-        LinearLayout nowText = new LinearLayout(this);
+        LinearLayout nowText = new LinearLayout(ctx);
         nowText.setOrientation(LinearLayout.VERTICAL);
         LinearLayout.LayoutParams ntp = new LinearLayout.LayoutParams(0, -2, 1);
         ntp.leftMargin = dp(12);
@@ -94,7 +101,7 @@ public class QueueActivity extends Activity implements Player.Listener {
         nowText.addView(nowArtist);
 
         // Controls
-        LinearLayout controls = new LinearLayout(this);
+        LinearLayout controls = new LinearLayout(ctx);
         controls.setOrientation(LinearLayout.HORIZONTAL);
         LinearLayout.LayoutParams clp = new LinearLayout.LayoutParams(-1, -2);
         clp.topMargin = dp(10);
@@ -103,10 +110,10 @@ public class QueueActivity extends Activity implements Player.Listener {
         controls.addView(playBtn, weight());
         controls.addView(button("SKIP", v -> player.skip()), weight());
         controls.addView(button("PASTE LINK", v -> paste()), weight());
-        controls.addView(button("STAGE", v -> backToStage()), weight());
+        controls.addView(button("CLOSE", v -> onClose.run()), weight());
 
         // Music volume (what your stream hears)
-        LinearLayout volRow = new LinearLayout(this);
+        LinearLayout volRow = new LinearLayout(ctx);
         volRow.setOrientation(LinearLayout.HORIZONTAL);
         volRow.setGravity(Gravity.CENTER_VERTICAL);
         LinearLayout.LayoutParams vlp = new LinearLayout.LayoutParams(-1, -2);
@@ -114,7 +121,7 @@ public class QueueActivity extends Activity implements Player.Listener {
         root.addView(volRow, vlp);
         TextView volLabel = text("VOLUME " + player.volumePercent() + "%", 12, Color.parseColor("#B5B5B5"), true);
         volRow.addView(volLabel, new LinearLayout.LayoutParams(dp(110), -2));
-        SeekBar vol = new SeekBar(this);
+        SeekBar vol = new SeekBar(ctx);
         vol.setMax(100);
         vol.setProgress(player.volumePercent());
         vol.setProgressTintList(android.content.res.ColorStateList.valueOf(RED));
@@ -149,8 +156,8 @@ public class QueueActivity extends Activity implements Player.Listener {
         empty.setPadding(0, dp(12), 0, 0);
         root.addView(empty);
 
-        list = new RecyclerView(this);
-        list.setLayoutManager(new LinearLayoutManager(this));
+        list = new RecyclerView(ctx);
+        list.setLayoutManager(new LinearLayoutManager(ctx));
         adapter = new QueueAdapter();
         list.setAdapter(adapter);
         touch = new ItemTouchHelper(new DragCallback());
@@ -161,21 +168,21 @@ public class QueueActivity extends Activity implements Player.Listener {
         LinearLayout.LayoutParams xlp = new LinearLayout.LayoutParams(-1, -2);
         xlp.topMargin = dp(8);
         root.addView(clear, xlp);
-
-        setContentView(root);
     }
 
     @Override
-    protected void onStart() {
-        super.onStart();
+    protected void onAttachedToWindow() {
+        super.onAttachedToWindow();
         player.addListener(this);
+        lastRendered = "";
+        lastNow = null;
         onPlayerChanged();
     }
 
     @Override
-    protected void onStop() {
+    protected void onDetachedFromWindow() {
         player.removeListener(this);
-        super.onStop();
+        super.onDetachedFromWindow();
     }
 
     private String lastRendered = "";
@@ -238,7 +245,7 @@ public class QueueActivity extends Activity implements Player.Listener {
         @NonNull
         @Override
         public Row onCreateViewHolder(@NonNull android.view.ViewGroup parent, int type) {
-            LinearLayout r = new LinearLayout(QueueActivity.this);
+            LinearLayout r = new LinearLayout(ctx);
             r.setOrientation(LinearLayout.HORIZONTAL);
             r.setGravity(Gravity.CENTER_VERTICAL);
             r.setPadding(dp(4), dp(8), dp(4), dp(8));
@@ -255,14 +262,14 @@ public class QueueActivity extends Activity implements Player.Listener {
             num.setGravity(Gravity.CENTER);
             r.addView(num, new LinearLayout.LayoutParams(dp(22), -2));
 
-            ImageView art = new ImageView(QueueActivity.this);
+            ImageView art = new ImageView(ctx);
             art.setScaleType(ImageView.ScaleType.CENTER_CROP);
             art.setBackgroundColor(Color.parseColor("#2A0A0C"));
             LinearLayout.LayoutParams alp = new LinearLayout.LayoutParams(dp(44), dp(44));
             alp.leftMargin = dp(4);
             r.addView(art, alp);
 
-            LinearLayout t = new LinearLayout(QueueActivity.this);
+            LinearLayout t = new LinearLayout(ctx);
             t.setOrientation(LinearLayout.VERTICAL);
             LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(0, -2, 1);
             tlp.leftMargin = dp(10);
@@ -369,25 +376,19 @@ public class QueueActivity extends Activity implements Player.Listener {
     }
 
     private void paste() {
-        ClipboardManager cm = getSystemService(ClipboardManager.class);
+        ClipboardManager cm = ctx.getSystemService(ClipboardManager.class);
         ClipData clip = cm.getPrimaryClip();
         String text = (clip != null && clip.getItemCount() > 0)
-                ? String.valueOf(clip.getItemAt(0).coerceToText(this)) : "";
+                ? String.valueOf(clip.getItemAt(0).coerceToText(ctx)) : "";
         int found = player.addFromText(text);
-        Toast.makeText(this, found == 0 ? "No Suno link on clipboard" : "Added to SilverBack",
+        Toast.makeText(ctx, found == 0 ? "No Suno link on clipboard" : "Added to SilverBack",
                 Toast.LENGTH_SHORT).show();
-    }
-
-    private void backToStage() {
-        startActivity(new Intent(this, MainActivity.class)
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT));
-        finish();
     }
 
     // ---- small UI helpers ----
 
     private TextView text(String s, int sp, int color, boolean bold) {
-        TextView t = new TextView(this);
+        TextView t = new TextView(ctx);
         t.setText(s);
         t.setTextSize(TypedValue.COMPLEX_UNIT_SP, sp);
         t.setTextColor(color);

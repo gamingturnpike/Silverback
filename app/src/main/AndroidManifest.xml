@@ -32,14 +32,6 @@
             </intent-filter>
         </activity>
 
-        <activity
-            android:name=".QueueActivity"
-            android:exported="false"
-            android:label="SilverBack Queue"
-            android:launchMode="singleTask"
-            android:taskAffinity="com.echoes.silverback.queue"
-            android:theme="@android:style/Theme.Material.NoActionBar" />
-
         <service
             android:name=".PlayerService"
             android:exported="false"
