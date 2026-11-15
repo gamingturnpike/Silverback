@@ -50,10 +50,16 @@ final class SunoResolver {
         return out;
     }
 
+    static volatile String lastError = "";
+
     static Song resolve(String link) {
+        lastError = "";
         try {
-            return resolveOrThrow(link);
+            Song s = resolveOrThrow(link);
+            if (s == null) lastError = "no song ID found on the page";
+            return s;
         } catch (Exception e) {
+            lastError = e.getClass().getSimpleName() + ": " + e.getMessage();
             return null;
         }
     }

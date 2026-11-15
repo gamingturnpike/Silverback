@@ -153,6 +153,24 @@
             android:textSize="34px"
             android:textStyle="bold" />
 
+        <!-- DEBUG panel: tap it to close -->
+        <ScrollView
+            android:id="@+id/debug_panel"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="#F2000000"
+            android:padding="14px"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/debug_text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fontFamily="monospace"
+                android:textColor="#7CFF7C"
+                android:textSize="15px" />
+        </ScrollView>
+
         <!-- Tap the stage to show for 4 seconds -->
         <LinearLayout
             android:id="@+id/controls"
@@ -167,6 +185,7 @@
 
             <TextView android:id="@+id/btn_play" style="@style/StageButton" android:text="PLAY" />
             <TextView android:id="@+id/btn_skip" style="@style/StageButton" android:text="SKIP" />
+            <TextView android:id="@+id/btn_debug" style="@style/StageButton" android:text="DEBUG" />
             <TextView android:id="@+id/btn_mini" style="@style/StageButton" android:text="MINI" />
             <TextView android:id="@+id/btn_paste" style="@style/StageButton" android:text="PASTE LINK" />
             <TextView android:id="@+id/btn_clear" style="@style/StageButton" android:text="CLEAR UP NEXT" />

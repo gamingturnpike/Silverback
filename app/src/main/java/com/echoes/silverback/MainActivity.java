@@ -22,6 +22,7 @@ import android.view.WindowInsetsController;
 import android.view.WindowManager;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -34,6 +35,8 @@ public class MainActivity extends Activity implements Player.Listener {
     private ImageView cover;
     private TextView title, artist, elapsed, total, upNext, empty, btnPlay;
     private ProgressBar progress;
+    private ScrollView debugPanel;
+    private TextView debugText;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable tick = new Runnable() {
@@ -63,6 +66,15 @@ public class MainActivity extends Activity implements Player.Listener {
         empty = findViewById(R.id.empty);
         progress = findViewById(R.id.progress);
         btnPlay = findViewById(R.id.btn_play);
+        debugPanel = findViewById(R.id.debug_panel);
+        debugText = findViewById(R.id.debug_text);
+        debugText.setOnClickListener(v -> debugPanel.setVisibility(View.GONE));
+        findViewById(R.id.btn_debug).setOnClickListener(v -> {
+            boolean show = debugPanel.getVisibility() != View.VISIBLE;
+            debugPanel.setVisibility(show ? View.VISIBLE : View.GONE);
+            if (show) refreshDebug();
+            bumpControls();
+        });
 
         findViewById(R.id.stage).setOnClickListener(v -> toggleControls());
         btnPlay.setOnClickListener(v -> { player.togglePause(); bumpControls(); });
@@ -209,6 +221,12 @@ public class MainActivity extends Activity implements Player.Listener {
         if (n > 2) sb.append("\n+").append(n - 2).append(" more");
         upNext.setText(n == 0 ? "—" : sb.toString());
         updateProgress();
+        if (debugPanel.getVisibility() == View.VISIBLE) refreshDebug();
+    }
+
+    private void refreshDebug() {
+        debugText.setText(player.debugText());
+        debugPanel.post(() -> debugPanel.fullScroll(View.FOCUS_DOWN));
     }
 
     private void updateProgress() {

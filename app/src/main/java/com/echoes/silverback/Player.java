@@ -6,7 +6,12 @@ import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.os.Handler;
 import android.os.Looper;
+import android.webkit.ConsoleMessage;
 import android.webkit.JavascriptInterface;
+import android.webkit.WebChromeClient;
+import android.webkit.WebResourceError;
+import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -17,7 +22,11 @@ import androidx.webkit.WebViewFeature;
 
 import org.json.JSONArray;
 
+import java.text.SimpleDateFormat;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Date;
+import java.util.Locale;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArraySet;
@@ -80,6 +89,38 @@ public final class Player {
         }
     };
 
+    // ---- DEBUG log ----
+    private final ArrayDeque<String> debug = new ArrayDeque<>();
+    private final SimpleDateFormat clock = new SimpleDateFormat("HH:mm:ss", Locale.US);
+    private String lastState = "";
+
+    void log(String msg) {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            main.post(() -> log(msg));
+            return;
+        }
+        debug.addLast(clock.format(new Date()) + "  " + msg);
+        while (debug.size() > 40) debug.removeFirst();
+        for (Listener l : listeners) l.onPlayerChanged();
+    }
+
+    String debugText() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("SilverBack ").append(BuildConfig.VERSION_NAME)
+                .append("  |  WebView ").append(webViewVersion()).append('\n');
+        for (String line : debug) sb.append(line).append('\n');
+        return sb.toString();
+    }
+
+    private String webViewVersion() {
+        try {
+            android.content.pm.PackageInfo pi = WebViewCompat.getCurrentWebViewPackage(ctx);
+            return pi == null ? "none" : pi.versionName;
+        } catch (Exception e) {
+            return "?";
+        }
+    }
+
     private Player(Context ctx) {
         this.ctx = ctx;
         this.prefs = ctx.getSharedPreferences("silverback", Context.MODE_PRIVATE);
@@ -93,14 +134,23 @@ public final class Player {
     /** Pulls every Suno link out of shared/pasted text and queues it. Returns how many were found. */
     public int addFromText(String text) {
         List<String> links = SunoResolver.extractLinks(text);
+        log(links.isEmpty() ? "No Suno link in: " + (text == null ? "(nothing)" : text.trim())
+                : "Link found: " + String.join(" ", links));
         for (String link : links) add(link);
         return links.size();
     }
 
     public void add(String link) {
         io.execute(() -> {
+            log("Loading song info…");
             Song s = SunoResolver.resolve(link);
-            if (s != null) s.cover = SunoResolver.loadBitmap(s.imageUrl);
+            if (s != null) {
+                log("Song: " + s.title + " — " + s.artist + "  [" + s.id + "]");
+                s.cover = SunoResolver.loadBitmap(s.imageUrl);
+                log(s.cover != null ? "Cover art loaded" : "Cover art failed: " + s.imageUrl);
+            } else {
+                log("Song info FAILED: " + SunoResolver.lastError);
+            }
             main.post(() -> {
                 if (s == null) {
                     toast("Couldn't load that Suno link");
@@ -149,10 +199,31 @@ public final class Player {
             WebViewCompat.addDocumentStartJavaScript(w, KEEP_VISIBLE_JS,
                     Collections.singleton("https://suno.com"));
         }
+        w.setWebChromeClient(new WebChromeClient() {
+            @Override
+            public boolean onConsoleMessage(ConsoleMessage m) {
+                if (m.messageLevel() == ConsoleMessage.MessageLevel.ERROR) {
+                    String t = m.message();
+                    log("Page error: " + (t.length() > 140 ? t.substring(0, 140) + "…" : t));
+                }
+                return true;
+            }
+        });
         w.setWebViewClient(new WebViewClient() {
+            @Override
+            public void onReceivedError(WebView view, WebResourceRequest req, WebResourceError err) {
+                if (req.isForMainFrame()) log("Suno player load error: " + err.getDescription());
+            }
+
+            @Override
+            public void onReceivedHttpError(WebView view, WebResourceRequest req, WebResourceResponse res) {
+                if (req.isForMainFrame()) log("Suno player HTTP " + res.getStatusCode());
+            }
+
             @Override
             public void onPageFinished(WebView view, String url) {
                 if (url != null && url.contains("/embed/")) {
+                    log("Suno player opened" + (view.isAttachedToWindow() ? " (on screen)" : " (NOT on screen)"));
                     view.evaluateJavascript(KEEP_VISIBLE_JS, null);
                     view.evaluateJavascript(startJs(generation), null);
                 }
@@ -167,10 +238,13 @@ public final class Player {
         return "(function(){if(window.__sb===" + gen + ")return;window.__sb=" + gen + ";var n=0;"
                 + "var iv=setInterval(function(){var a=document.querySelector('audio');"
                 + "var b=document.querySelector('button');"
-                + "if(a&&!a.__sbHooked){a.__sbHooked=1;a.addEventListener('ended',function(){SilverBack.ended(" + gen + ");});}"
-                + "if(a&&!a.paused&&a.currentTime>0){clearInterval(iv);return;}"
-                + "if(b&&(!a||a.paused)&&n%6===0){b.click();}"
-                + "n++;if(n>60){clearInterval(iv);}},500);})()";
+                + "if(a&&!a.__sbHooked){a.__sbHooked=1;a.addEventListener('ended',function(){SilverBack.ended(" + gen + ");});"
+                + "a.addEventListener('error',function(){SilverBack.log('Audio error code '+(a.error?a.error.code+' '+(a.error.message||''):'?'));});}"
+                + "if(a&&!a.paused&&a.currentTime>0){SilverBack.log('Audio playing');clearInterval(iv);return;}"
+                + "if(n%6===0){if(b&&(!a||a.paused)){b.click();SilverBack.log('Pressed play ('+(a?'audio ready':'no audio yet')+')');}"
+                + "else if(!b){SilverBack.log('Play button not found yet');}"
+                + "else if(a){SilverBack.log('Waiting: paused='+a.paused+' t='+a.currentTime.toFixed(1)+' ready='+a.readyState+' net='+a.networkState);}}"
+                + "n++;if(n>60){SilverBack.log('Gave up pressing play after 30s');clearInterval(iv);}},500);})()";
     }
 
     private void start(Song s) {
@@ -188,7 +262,9 @@ public final class Player {
         audioPaused = true;
         posSec = 0;
         durSec = 0;
+        lastState = "";
         loadStartedAt = System.currentTimeMillis();
+        log("Opening Suno player: " + s.embedUrl());
         engine().loadUrl(s.embedUrl());
         PlayerService.startOrUpdate(ctx);
         main.removeCallbacks(poll);
@@ -213,6 +289,11 @@ public final class Player {
         }
         audioPaused = p[2].equals("1");
         boolean ended = p[3].equals("1");
+        String state = (audioPaused ? "paused" : "playing") + (posSec > 0 ? "" : " (0:00)");
+        if (!state.equals(lastState)) {
+            lastState = state;
+            log("Audio " + state);
+        }
         if (posSec > 0) started = true;
         if (ended && started) {
             playNext();
@@ -224,6 +305,7 @@ public final class Player {
 
     private void checkStuck() {
         if (!started && System.currentTimeMillis() - loadStartedAt > 30000) {
+            log("No sound after 30s — skipping " + current.title);
             toast("Couldn't play " + current.title);
             playNext();
         }
@@ -262,6 +344,11 @@ public final class Player {
     }
 
     private final class Bridge {
+        @JavascriptInterface
+        public void log(String msg) {
+            Player.this.log("Player: " + msg);
+        }
+
         @JavascriptInterface
         public void ended(int gen) {
             main.post(() -> {
