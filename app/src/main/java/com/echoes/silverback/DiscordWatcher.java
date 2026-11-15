@@ -191,7 +191,13 @@ final class DiscordWatcher {
                     + " — watching channel " + channel());
             PlayerService.updateIfRunning(ctx);
         } else if ("MESSAGE_CREATE".equals(type)) {
-            if (!channel().equals(d.optString("channel_id"))) return;
+            String ch = d.optString("channel_id");
+            if (!channel().equals(ch)) {
+                if (d.optString("content", "").toLowerCase().contains("suno.")) {
+                    log("Suno link seen in a different channel (" + ch + ") — not the one SilverBack watches");
+                }
+                return;
+            }
             JSONObject author = d.optJSONObject("author");
             if (author != null && author.optString("id").equals(botId)) return;
             String content = d.optString("content", "");

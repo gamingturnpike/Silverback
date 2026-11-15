@@ -259,7 +259,7 @@ public class MainActivity extends Activity implements Player.Listener {
         String status = !dw.isRunning() ? "Off" : dw.isConnected() ? "On — connected" : "On — connecting";
         new AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
                 .setTitle("Discord link watcher")
-                .setMessage("Status: " + status + "\nSuno links posted in this channel go straight into the queue.")
+                .setMessage("Status: " + status + "\nSuno links posted in this channel go straight into the queue.\n\nRecent:\n" + player.discordLog())
                 .setView(box)
                 .setPositiveButton("Save & connect", (d, w) -> {
                     dw.save(token.getText().toString().trim(), channel.getText().toString().trim());

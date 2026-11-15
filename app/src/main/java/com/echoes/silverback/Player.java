@@ -122,6 +122,23 @@ public final class Player {
         for (Listener l : listeners) l.onPlayerChanged();
     }
 
+    /** Last few lines that mention Discord, newest last. */
+    String discordLog() {
+        StringBuilder sb = new StringBuilder();
+        int n = 0;
+        java.util.Iterator<String> it = debug.descendingIterator();
+        java.util.ArrayList<String> lines = new java.util.ArrayList<>();
+        while (it.hasNext() && n < 6) {
+            String l = it.next();
+            if (l.contains("Discord") || l.contains("Link from") || l.contains("Skipped link")) {
+                lines.add(0, l);
+                n++;
+            }
+        }
+        for (String l : lines) sb.append(l).append('\n');
+        return sb.length() == 0 ? "(nothing yet)" : sb.toString().trim();
+    }
+
     String debugText() {
         StringBuilder sb = new StringBuilder();
         sb.append("SilverBack ").append(BuildConfig.VERSION_NAME)
