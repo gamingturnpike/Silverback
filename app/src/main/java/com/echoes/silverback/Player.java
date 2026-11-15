@@ -251,6 +251,7 @@ public final class Player {
                 + "var b=document.querySelector('button');"
                 + "if(a&&!a.__sbHooked){a.__sbHooked=1;a.addEventListener('ended',function(){SilverBack.ended(" + gen + ");});"
                 + "a.addEventListener('error',function(){SilverBack.log('Audio error code '+(a.error?a.error.code+' '+(a.error.message||''):'?'));});}"
+                + "if(window.__sbUser){clearInterval(iv);return;}"
                 + "if(a&&!a.paused&&a.currentTime>0){SilverBack.log('Audio playing');clearInterval(iv);return;}"
                 + "if(n%6===0){if(b&&(!a||a.paused)){b.click();SilverBack.log('Pressed play ('+(a?'audio ready':'no audio yet')+')');}"
                 + "else if(!b){SilverBack.log('Play button not found yet');}"
@@ -322,14 +323,22 @@ public final class Player {
         }
     }
 
-    // Uses Suno's own play/pause button (keeps its player in sync); falls back to the audio element.
-    private static final String TOGGLE_JS =
-            "(function(){var a=document.querySelector('audio');var b=document.querySelector('button');"
-                    + "var was=a?a.paused:null;if(b){b.click();}else if(a){if(a.paused)a.play();else a.pause();}"
-                    + "setTimeout(function(){var a2=document.querySelector('audio');"
-                    + "if(a2&&was!==null&&a2.paused===was){if(was)a2.play();else a2.pause();"
-                    + "SilverBack.log('Button did not respond, used audio '+(was?'play':'pause'));}"
-                    + "SilverBack.log('Now '+(a2?(a2.paused?'paused':'playing'):'no audio'));},800);})()";
+    /**
+     * Makes the player reach a wanted state (play or pause) instead of blindly toggling,
+     * so the button always does what its label says. Uses Suno's own button first,
+     * then sets the audio directly if Suno's button hasn't done it within 2 seconds.
+     */
+    private static String wantJs(boolean play) {
+        String w = play ? "true" : "false";
+        return "(function(want){window.__sbUser=1;"
+                + "function ok(){var x=document.querySelector('audio');return x&&(want?!x.paused:x.paused);}"
+                + "if(ok()){SilverBack.log('Already '+(want?'playing':'paused'));return;}"
+                + "var a=document.querySelector('audio');var b=document.querySelector('button');"
+                + "if(b){b.click();}else if(a){if(want)a.play();else a.pause();}"
+                + "setTimeout(function(){var x=document.querySelector('audio');"
+                + "if(x&&!ok()){if(want)x.play();else x.pause();SilverBack.log('Suno button slow, set audio directly');}"
+                + "SilverBack.log('Now '+(x?(x.paused?'paused':'playing'):'no audio'));},2000);})(" + w + ")";
+    }
 
     public void togglePause() {
         if (current == null) {
@@ -341,10 +350,11 @@ public final class Player {
             log("Play/Pause pressed but player isn't ready");
             return;
         }
-        log((audioPaused ? "Play" : "Pause") + " pressed");
-        userPaused = !audioPaused;
-        web.evaluateJavascript(TOGGLE_JS, null);
-        audioPaused = userPaused;
+        boolean wantPlay = !isPlaying();
+        log((wantPlay ? "Play" : "Pause") + " pressed");
+        web.evaluateJavascript(wantJs(wantPlay), null);
+        audioPaused = !wantPlay;
+        if (wantPlay) started = started || posSec > 0;
         changed();
     }
 

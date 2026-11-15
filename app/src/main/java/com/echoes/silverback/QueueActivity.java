@@ -139,14 +139,21 @@ public class QueueActivity extends Activity implements Player.Listener {
 
     private String lastRendered = "";
     private boolean dragging;
+    private String lastNow = null;
 
     @Override
     public void onPlayerChanged() {
+        // Only touch views when something actually changed (keeps dragging smooth)
         Song s = player.current;
-        nowTitle.setText(s != null ? s.title : "Nothing playing");
-        nowArtist.setText(s != null ? s.artist : "Share or paste a Suno link");
-        cover.setImageBitmap(s != null ? s.cover : null);
-        playBtn.setText(player.isPlaying() ? "PAUSE" : "PLAY");
+        String nowKey = s == null ? "" : s.id + (s.cover != null ? "+" : "-");
+        if (!nowKey.equals(lastNow)) {
+            lastNow = nowKey;
+            nowTitle.setText(s != null ? s.title : "Nothing playing");
+            nowArtist.setText(s != null ? s.artist : "Share or paste a Suno link");
+            cover.setImageBitmap(s != null ? s.cover : null);
+        }
+        String label = player.isPlaying() ? "PAUSE" : "PLAY";
+        if (!label.contentEquals(playBtn.getText())) playBtn.setText(label);
 
         // Rebuild the list only when the queue itself changed (never mid-drag)
         if (dragging) return;
@@ -227,12 +234,24 @@ public class QueueActivity extends Activity implements Player.Listener {
             artist.setSingleLine(true);
             t.addView(artist);
 
+            TextView up = icon("▲", null, true);
+            TextView down = icon("▼", null, true);
             TextView play = icon("▶", null, true);
             TextView remove = icon("✕", null, true);
+            r.addView(up);
+            r.addView(down);
             r.addView(play);
             r.addView(remove);
 
             Row h = new Row(r, num, art, title, artist, play, remove, handle);
+            up.setOnClickListener(v -> {
+                int p = h.getBindingAdapterPosition();
+                if (p > 0) player.move(p, p - 1);
+            });
+            down.setOnClickListener(v -> {
+                int p = h.getBindingAdapterPosition();
+                if (p != RecyclerView.NO_POSITION && p < player.queue.size() - 1) player.move(p, p + 1);
+            });
             handle.setOnTouchListener((v, e) -> {
                 if (e.getActionMasked() == android.view.MotionEvent.ACTION_DOWN) touch.startDrag(h);
                 return false;
@@ -273,6 +292,7 @@ public class QueueActivity extends Activity implements Player.Listener {
                               @NonNull RecyclerView.ViewHolder to) {
             int f = from.getBindingAdapterPosition(), t = to.getBindingAdapterPosition();
             if (f == RecyclerView.NO_POSITION || t == RecyclerView.NO_POSITION) return false;
+            if (t < 0 || t >= player.queue.size()) return false;
             player.moveSilently(f, t);
             adapter.notifyItemMoved(f, t);
             return true;
@@ -283,6 +303,7 @@ public class QueueActivity extends Activity implements Player.Listener {
             super.onSelectedChanged(vh, state);
             if (state == ItemTouchHelper.ACTION_STATE_DRAG && vh != null) {
                 dragging = true;
+                player.log("Queue: drag started on #" + (vh.getBindingAdapterPosition() + 1));
                 vh.itemView.setBackground(rounded(Color.parseColor("#2A0A0C"), RED));
                 vh.itemView.setScaleX(1.03f);
                 vh.itemView.setScaleY(1.03f);
@@ -297,6 +318,7 @@ public class QueueActivity extends Activity implements Player.Listener {
             vh.itemView.setScaleY(1f);
             dragging = false;
             lastRendered = "";
+            player.log("Queue: dropped at #" + (vh.getBindingAdapterPosition() + 1));
             player.commitOrder();
         }
 
@@ -342,9 +364,9 @@ public class QueueActivity extends Activity implements Player.Listener {
     }
 
     private TextView icon(String glyph, View.OnClickListener l, boolean enabled) {
-        TextView b = text(glyph, 18, enabled ? Color.WHITE : Color.parseColor("#444444"), true);
+        TextView b = text(glyph, 17, enabled ? Color.WHITE : Color.parseColor("#444444"), true);
         b.setGravity(Gravity.CENTER);
-        b.setLayoutParams(new LinearLayout.LayoutParams(dp(40), dp(44)));
+        b.setLayoutParams(new LinearLayout.LayoutParams(dp(34), dp(44)));
         if (enabled) b.setOnClickListener(l);
         return b;
     }
