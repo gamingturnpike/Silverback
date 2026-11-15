@@ -201,29 +201,31 @@
             android:textStyle="bold"
             android:visibility="gone" />
 
-        <!-- Tap the stage to show for 4 seconds -->
-        <LinearLayout
-            android:id="@+id/controls"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="bottom|end"
-            android:layout_margin="16px"
-            android:background="@drawable/controls_bg"
-            android:orientation="horizontal"
-            android:padding="6px"
-            android:visibility="gone">
 
-            <TextView android:id="@+id/btn_play" style="@style/StageButton" android:text="PLAY" />
-            <TextView android:id="@+id/btn_skip" style="@style/StageButton" android:text="SKIP" />
-            <TextView android:id="@+id/btn_debug" style="@style/StageButton" android:text="DEBUG" />
-            <TextView android:id="@+id/btn_mini" style="@style/StageButton" android:text="MINI" />
-            <TextView android:id="@+id/btn_discord" style="@style/StageButton" android:text="DISCORD" />
-            <TextView android:id="@+id/btn_queue" style="@style/StageButton" android:text="QUEUE" />
-            <TextView android:id="@+id/btn_paste" style="@style/StageButton" android:text="PASTE" />
-            <TextView android:id="@+id/btn_clear" style="@style/StageButton" android:text="CLEAR" />
-            <TextView android:id="@+id/btn_vol_down" style="@style/StageButton" android:text="STREAM −" />
-            <TextView android:id="@+id/btn_vol_up" style="@style/StageButton" android:text="STREAM +" />
-        </LinearLayout>
     </FrameLayout>
 </com.echoes.silverback.StageLayout>
+    <!-- Control bar across the bottom of the screen (tap the stage to show for 4 seconds) -->
+    <LinearLayout
+        android:id="@+id/controls"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:background="#E6080406"
+        android:orientation="horizontal"
+        android:paddingStart="6dp"
+        android:paddingTop="6dp"
+        android:paddingEnd="6dp"
+        android:paddingBottom="8dp"
+        android:visibility="gone">
+        <TextView android:id="@+id/btn_play" style="@style/BarButton" android:text="PLAY" />
+        <TextView android:id="@+id/btn_skip" style="@style/BarButton" android:text="SKIP" />
+        <TextView android:id="@+id/btn_debug" style="@style/BarButton" android:text="DEBUG" />
+        <TextView android:id="@+id/btn_mini" style="@style/BarButton" android:text="MINI" />
+        <TextView android:id="@+id/btn_discord" style="@style/BarButton" android:text="DISCORD" />
+        <TextView android:id="@+id/btn_queue" style="@style/BarButton" android:text="QUEUE" />
+        <TextView android:id="@+id/btn_paste" style="@style/BarButton" android:text="PASTE" />
+        <TextView android:id="@+id/btn_clear" style="@style/BarButton" android:text="CLEAR" />
+        <TextView android:id="@+id/btn_vol_down" style="@style/BarButton" android:text="STREAM −" />
+        <TextView android:id="@+id/btn_vol_up" style="@style/BarButton" android:text="STREAM +" />
+    </LinearLayout>
 </FrameLayout>
