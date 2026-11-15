@@ -211,7 +211,28 @@ final class DiscordWatcher {
             if (!content.toLowerCase().contains("suno.")) return;
             String uid = author != null ? author.optString("id") : "unknown";
             String name = author != null ? author.optString("username") : "someone";
-            Player.get(ctx).addFromDiscord(content, uid, name);
+            String msgId = d.optString("id");
+            Player.get(ctx).addFromDiscord(content, uid, name, new Player.DiscordResult() {
+                @Override
+                public void added(Song song, int extraLinks) {
+                    react(ch, msgId, "✅");
+                    if (extraLinks > 0) {
+                        reply(ch, msgId, uid, "<@" + uid + "> one song at a time — I added your first link (**"
+                                + song.title + "**). Drop the next one after it plays!");
+                    }
+                }
+
+                @Override
+                public void busy() {
+                    reply(ch, msgId, uid, "<@" + uid + "> one song at a time! You already have a song in the queue — "
+                            + "drop your next one after it plays.");
+                }
+
+                @Override
+                public void failed() {
+                    react(ch, msgId, "❌");
+                }
+            });
         }
     }
 
@@ -237,6 +258,63 @@ final class DiscordWatcher {
             main.postDelayed(this::connect, backoffMs);
             backoffMs = Math.min(backoffMs * 2, 60000);
         }
+    }
+
+    // ---- talking back in the channel (needs Add Reactions + Send Messages) ----
+    private static final okhttp3.MediaType JSON = okhttp3.MediaType.get("application/json; charset=utf-8");
+
+    private void react(String channelId, String msgId, String emoji) {
+        try {
+            String e = java.net.URLEncoder.encode(emoji, "UTF-8");
+            Request r = new Request.Builder()
+                    .url("https://discord.com/api/v10/channels/" + channelId + "/messages/" + msgId + "/reactions/" + e + "/@me")
+                    .header("Authorization", "Bot " + token())
+                    .put(okhttp3.RequestBody.create(new byte[0], null))
+                    .build();
+            http.newCall(r).enqueue(restCallback("react"));
+        } catch (Exception ex) {
+            log("React failed: " + ex.getMessage());
+        }
+    }
+
+    private void reply(String channelId, String msgId, String userId, String text) {
+        try {
+            JSONObject body = new JSONObject()
+                    .put("content", text)
+                    .put("message_reference", new JSONObject().put("message_id", msgId).put("fail_if_not_exists", false))
+                    .put("allowed_mentions", new JSONObject()
+                            .put("users", new org.json.JSONArray().put(userId))
+                            .put("replied_user", true));
+            Request r = new Request.Builder()
+                    .url("https://discord.com/api/v10/channels/" + channelId + "/messages")
+                    .header("Authorization", "Bot " + token())
+                    .post(okhttp3.RequestBody.create(body.toString(), JSON))
+                    .build();
+            http.newCall(r).enqueue(restCallback("reply"));
+        } catch (Exception ex) {
+            log("Reply failed: " + ex.getMessage());
+        }
+    }
+
+    private okhttp3.Callback restCallback(String what) {
+        return new okhttp3.Callback() {
+            @Override
+            public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                log("Couldn't " + what + ": " + e.getMessage());
+            }
+
+            @Override
+            public void onResponse(okhttp3.Call call, Response resp) {
+                int code = resp.code();
+                resp.close();
+                if (code == 403) {
+                    log("Couldn't " + what + " — bot needs " + (what.equals("react") ? "Add Reactions" : "Send Messages")
+                            + " permission in that channel");
+                } else if (code >= 300) {
+                    log("Couldn't " + what + " (HTTP " + code + ")");
+                }
+            }
+        };
     }
 
     private void send(String json) {

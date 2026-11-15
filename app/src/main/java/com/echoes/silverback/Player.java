@@ -192,20 +192,33 @@ public final class Player {
     }
 
     /** Links posted in Discord: one song at a time per person. */
-    public void addFromDiscord(String text, String userId, String userName) {
+    /** What happened to a Discord request (called on the main thread). */
+    public interface DiscordResult {
+        void added(Song s, int extraLinks);
+        void busy();
+        void failed();
+    }
+
+    public void addFromDiscord(String text, String userId, String userName, DiscordResult result) {
         List<String> links = SunoResolver.extractLinks(text);
         if (links.isEmpty()) return;
         if (hasSong(userId)) {
             log("Skipped link from " + userName + " — they already have a song in the queue");
+            if (result != null) result.busy();
             return;
         }
-        if (links.size() > 1) log(userName + " posted " + links.size() + " links — only the first is used");
+        int extra = links.size() - 1;
+        if (extra > 0) log(userName + " posted " + links.size() + " links — only the first is used");
         log("Link from " + userName + ": " + links.get(0));
         pendingRequesters.add(userId);
-        add(links.get(0), userId, userName);
+        add(links.get(0), userId, userName, result, extra);
     }
 
     private void add(String link, String reqId, String reqName) {
+        add(link, reqId, reqName, null, 0);
+    }
+
+    private void add(String link, String reqId, String reqName, DiscordResult result, int extra) {
         io.execute(() -> {
             log("Loading song info…");
             Song s = SunoResolver.resolve(link);
@@ -220,11 +233,13 @@ public final class Player {
                 if (!reqId.isEmpty()) pendingRequesters.remove(reqId);
                 if (s == null) {
                     toast("Couldn't load that Suno link");
+                    if (result != null) result.failed();
                     return;
                 }
                 s.requesterId = reqId;
                 s.requesterName = reqName;
                 queue.add(s);
+                if (result != null) result.added(s, extra);
                 save();
                 if (current == null) playNext();
                 else changed();
