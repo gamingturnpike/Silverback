@@ -14,9 +14,13 @@ import android.view.Gravity;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import androidx.annotation.NonNull;
+import androidx.recyclerview.widget.ItemTouchHelper;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 /** Your private queue screen. Opens beside the mini stage; viewers never see it. */
 public class QueueActivity extends Activity implements Player.Listener {
@@ -28,7 +32,10 @@ public class QueueActivity extends Activity implements Player.Listener {
     private Player player;
     private ImageView cover;
     private TextView nowTitle, nowArtist, playBtn, count;
-    private LinearLayout list;
+    private RecyclerView list;
+    private TextView empty;
+    private QueueAdapter adapter;
+    private ItemTouchHelper touch;
 
     @Override
     protected void onCreate(Bundle state) {
@@ -96,11 +103,18 @@ public class QueueActivity extends Activity implements Player.Listener {
         cnt.bottomMargin = dp(6);
         root.addView(count, cnt);
 
-        ScrollView scroll = new ScrollView(this);
-        list = new LinearLayout(this);
-        list.setOrientation(LinearLayout.VERTICAL);
-        scroll.addView(list);
-        root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
+        empty = text("Queue is empty. Links from Discord, Share, or Paste Link show up here.",
+                14, Color.parseColor("#777777"), false);
+        empty.setPadding(0, dp(12), 0, 0);
+        root.addView(empty);
+
+        list = new RecyclerView(this);
+        list.setLayoutManager(new LinearLayoutManager(this));
+        adapter = new QueueAdapter();
+        list.setAdapter(adapter);
+        touch = new ItemTouchHelper(new DragCallback());
+        touch.attachToRecyclerView(list);
+        root.addView(list, new LinearLayout.LayoutParams(-1, 0, 1));
 
         TextView clear = button("CLEAR UP NEXT", v -> player.clearUpNext());
         LinearLayout.LayoutParams xlp = new LinearLayout.LayoutParams(-1, -2);
@@ -124,6 +138,7 @@ public class QueueActivity extends Activity implements Player.Listener {
     }
 
     private String lastRendered = "";
+    private boolean dragging;
 
     @Override
     public void onPlayerChanged() {
@@ -133,64 +148,161 @@ public class QueueActivity extends Activity implements Player.Listener {
         cover.setImageBitmap(s != null ? s.cover : null);
         playBtn.setText(player.isPlaying() ? "PAUSE" : "PLAY");
 
-        // Rebuild the list only when the queue itself changed
+        // Rebuild the list only when the queue itself changed (never mid-drag)
+        if (dragging) return;
         StringBuilder key = new StringBuilder();
         for (Song q : player.queue) key.append(q.id).append(q.cover != null ? '+' : '-');
         if (key.toString().equals(lastRendered)) return;
         lastRendered = key.toString();
 
         int n = player.queue.size();
-        count.setText("UP NEXT  ·  " + n + (n == 1 ? " SONG" : " SONGS"));
-        list.removeAllViews();
-        for (int i = 0; i < n; i++) list.addView(row(i, player.queue.get(i), n));
-        if (n == 0) {
-            TextView empty = text("Queue is empty. Links from Discord, Share, or Paste Link show up here.",
-                    14, Color.parseColor("#777777"), false);
-            empty.setPadding(0, dp(12), 0, 0);
-            list.addView(empty);
+        count.setText("UP NEXT  ·  " + n + (n == 1 ? " SONG" : " SONGS") + "   —   hold ≡ and drag to reorder");
+        empty.setVisibility(n == 0 ? View.VISIBLE : View.GONE);
+        adapter.notifyDataSetChanged();
+    }
+
+    // ---- drag-and-drop list ----
+
+    private final class Row extends RecyclerView.ViewHolder {
+        final TextView num, title, artist, handle;
+        final ImageView art;
+        final View play, remove;
+
+        Row(LinearLayout r, TextView num, ImageView art, TextView title, TextView artist,
+            View play, View remove, TextView handle) {
+            super(r);
+            this.num = num;
+            this.art = art;
+            this.title = title;
+            this.artist = artist;
+            this.play = play;
+            this.remove = remove;
+            this.handle = handle;
         }
     }
 
-    private View row(int i, Song q, int n) {
-        LinearLayout r = new LinearLayout(this);
-        r.setOrientation(LinearLayout.HORIZONTAL);
-        r.setGravity(Gravity.CENTER_VERTICAL);
-        r.setPadding(dp(8), dp(8), dp(4), dp(8));
-        r.setBackground(rounded(CARD, 0));
-        LinearLayout.LayoutParams rlp = new LinearLayout.LayoutParams(-1, -2);
-        rlp.bottomMargin = dp(6);
-        r.setLayoutParams(rlp);
+    private final class QueueAdapter extends RecyclerView.Adapter<Row> {
+        @Override
+        public int getItemCount() {
+            return player.queue.size();
+        }
 
-        TextView num = text(String.valueOf(i + 1), 14, RED, true);
-        num.setGravity(Gravity.CENTER);
-        r.addView(num, new LinearLayout.LayoutParams(dp(24), -2));
+        @NonNull
+        @Override
+        public Row onCreateViewHolder(@NonNull android.view.ViewGroup parent, int type) {
+            LinearLayout r = new LinearLayout(QueueActivity.this);
+            r.setOrientation(LinearLayout.HORIZONTAL);
+            r.setGravity(Gravity.CENTER_VERTICAL);
+            r.setPadding(dp(4), dp(8), dp(4), dp(8));
+            r.setBackground(rounded(CARD, 0));
+            RecyclerView.LayoutParams rlp = new RecyclerView.LayoutParams(-1, -2);
+            rlp.bottomMargin = dp(6);
+            r.setLayoutParams(rlp);
 
-        ImageView art = new ImageView(this);
-        art.setScaleType(ImageView.ScaleType.CENTER_CROP);
-        art.setBackgroundColor(Color.parseColor("#2A0A0C"));
-        art.setImageBitmap(q.cover);
-        LinearLayout.LayoutParams alp = new LinearLayout.LayoutParams(dp(44), dp(44));
-        alp.leftMargin = dp(4);
-        r.addView(art, alp);
+            TextView handle = text("≡", 24, Color.parseColor("#B5B5B5"), true);
+            handle.setGravity(Gravity.CENTER);
+            r.addView(handle, new LinearLayout.LayoutParams(dp(40), dp(48)));
 
-        LinearLayout t = new LinearLayout(this);
-        t.setOrientation(LinearLayout.VERTICAL);
-        LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(0, -2, 1);
-        tlp.leftMargin = dp(10);
-        r.addView(t, tlp);
-        TextView title = text(q.title, 15, Color.WHITE, true);
-        title.setSingleLine(true);
-        title.setEllipsize(TextUtils.TruncateAt.END);
-        t.addView(title);
-        TextView artist = text(q.artist, 12, Color.parseColor("#9A9A9A"), false);
-        artist.setSingleLine(true);
-        t.addView(artist);
+            TextView num = text("", 14, RED, true);
+            num.setGravity(Gravity.CENTER);
+            r.addView(num, new LinearLayout.LayoutParams(dp(22), -2));
 
-        r.addView(icon("▶", v -> player.playNow(i), true));
-        r.addView(icon("▲", v -> player.move(i, i - 1), i > 0));
-        r.addView(icon("▼", v -> player.move(i, i + 1), i < n - 1));
-        r.addView(icon("✕", v -> player.remove(i), true));
-        return r;
+            ImageView art = new ImageView(QueueActivity.this);
+            art.setScaleType(ImageView.ScaleType.CENTER_CROP);
+            art.setBackgroundColor(Color.parseColor("#2A0A0C"));
+            LinearLayout.LayoutParams alp = new LinearLayout.LayoutParams(dp(44), dp(44));
+            alp.leftMargin = dp(4);
+            r.addView(art, alp);
+
+            LinearLayout t = new LinearLayout(QueueActivity.this);
+            t.setOrientation(LinearLayout.VERTICAL);
+            LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(0, -2, 1);
+            tlp.leftMargin = dp(10);
+            r.addView(t, tlp);
+            TextView title = text("", 15, Color.WHITE, true);
+            title.setSingleLine(true);
+            title.setEllipsize(TextUtils.TruncateAt.END);
+            t.addView(title);
+            TextView artist = text("", 12, Color.parseColor("#9A9A9A"), false);
+            artist.setSingleLine(true);
+            t.addView(artist);
+
+            TextView play = icon("▶", null, true);
+            TextView remove = icon("✕", null, true);
+            r.addView(play);
+            r.addView(remove);
+
+            Row h = new Row(r, num, art, title, artist, play, remove, handle);
+            handle.setOnTouchListener((v, e) -> {
+                if (e.getActionMasked() == android.view.MotionEvent.ACTION_DOWN) touch.startDrag(h);
+                return false;
+            });
+            play.setOnClickListener(v -> {
+                int p = h.getBindingAdapterPosition();
+                if (p != RecyclerView.NO_POSITION) player.playNow(p);
+            });
+            remove.setOnClickListener(v -> {
+                int p = h.getBindingAdapterPosition();
+                if (p != RecyclerView.NO_POSITION) player.remove(p);
+            });
+            return h;
+        }
+
+        @Override
+        public void onBindViewHolder(@NonNull Row h, int pos) {
+            Song q = player.queue.get(pos);
+            h.num.setText(String.valueOf(pos + 1));
+            h.title.setText(q.title);
+            h.artist.setText(q.artist);
+            h.art.setImageBitmap(q.cover);
+        }
+    }
+
+    private final class DragCallback extends ItemTouchHelper.SimpleCallback {
+        DragCallback() {
+            super(ItemTouchHelper.UP | ItemTouchHelper.DOWN, 0);
+        }
+
+        @Override
+        public boolean isLongPressDragEnabled() {
+            return true; // hold anywhere on a song, or grab the ≡ handle
+        }
+
+        @Override
+        public boolean onMove(@NonNull RecyclerView rv, @NonNull RecyclerView.ViewHolder from,
+                              @NonNull RecyclerView.ViewHolder to) {
+            int f = from.getBindingAdapterPosition(), t = to.getBindingAdapterPosition();
+            if (f == RecyclerView.NO_POSITION || t == RecyclerView.NO_POSITION) return false;
+            player.moveSilently(f, t);
+            adapter.notifyItemMoved(f, t);
+            return true;
+        }
+
+        @Override
+        public void onSelectedChanged(RecyclerView.ViewHolder vh, int state) {
+            super.onSelectedChanged(vh, state);
+            if (state == ItemTouchHelper.ACTION_STATE_DRAG && vh != null) {
+                dragging = true;
+                vh.itemView.setBackground(rounded(Color.parseColor("#2A0A0C"), RED));
+                vh.itemView.setScaleX(1.03f);
+                vh.itemView.setScaleY(1.03f);
+            }
+        }
+
+        @Override
+        public void clearView(@NonNull RecyclerView rv, @NonNull RecyclerView.ViewHolder vh) {
+            super.clearView(rv, vh);
+            vh.itemView.setBackground(rounded(CARD, 0));
+            vh.itemView.setScaleX(1f);
+            vh.itemView.setScaleY(1f);
+            dragging = false;
+            lastRendered = "";
+            player.commitOrder();
+        }
+
+        @Override
+        public void onSwiped(@NonNull RecyclerView.ViewHolder vh, int dir) {
+        }
     }
 
     private void paste() {

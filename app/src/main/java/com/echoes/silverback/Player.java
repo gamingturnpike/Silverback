@@ -333,6 +333,18 @@ public final class Player {
         changed();
     }
 
+    /** Used while dragging: reorders without redrawing the screen. */
+    public void moveSilently(int from, int to) {
+        if (from < 0 || from >= queue.size() || to < 0 || to >= queue.size()) return;
+        queue.add(to, queue.remove(from));
+    }
+
+    /** Called when you let go of a dragged song. */
+    public void commitOrder() {
+        save();
+        changed();
+    }
+
     public void remove(int i) {
         if (i < 0 || i >= queue.size()) return;
         queue.remove(i);
