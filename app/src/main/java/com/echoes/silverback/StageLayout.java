@@ -8,7 +8,8 @@ import android.view.ViewGroup;
 /**
  * Fits the SilverBack overlay (1672x941) on screen and drops the song window
  * exactly into the overlay's black screen area.
- * Child 0 = overlay image, child 1 = song window (designed at 1095x462 px, scaled to fit).
+ * Every child except the last fills the whole stage (overlay art, effects);
+ * the last child is the song window (designed at 1095x462 px, scaled to fit).
  */
 public class StageLayout extends ViewGroup {
 
@@ -26,9 +27,12 @@ public class StageLayout extends ViewGroup {
         setMeasuredDimension(w, h);
         float scale = Math.min(w / ART_W, h / ART_H);
         int sw = Math.round(ART_W * scale), sh = Math.round(ART_H * scale);
-        getChildAt(0).measure(MeasureSpec.makeMeasureSpec(sw, MeasureSpec.EXACTLY),
-                MeasureSpec.makeMeasureSpec(sh, MeasureSpec.EXACTLY));
-        getChildAt(1).measure(MeasureSpec.makeMeasureSpec(DESIGN_W, MeasureSpec.EXACTLY),
+        int n = getChildCount();
+        for (int i = 0; i < n - 1; i++) {
+            getChildAt(i).measure(MeasureSpec.makeMeasureSpec(sw, MeasureSpec.EXACTLY),
+                    MeasureSpec.makeMeasureSpec(sh, MeasureSpec.EXACTLY));
+        }
+        getChildAt(n - 1).measure(MeasureSpec.makeMeasureSpec(DESIGN_W, MeasureSpec.EXACTLY),
                 MeasureSpec.makeMeasureSpec(DESIGN_H, MeasureSpec.EXACTLY));
     }
 
@@ -38,9 +42,10 @@ public class StageLayout extends ViewGroup {
         float scale = Math.min(w / ART_W, h / ART_H);
         int sw = Math.round(ART_W * scale), sh = Math.round(ART_H * scale);
         int ox = (w - sw) / 2, oy = (h - sh) / 2;
-        getChildAt(0).layout(ox, oy, ox + sw, oy + sh);
+        int n = getChildCount();
+        for (int i = 0; i < n - 1; i++) getChildAt(i).layout(ox, oy, ox + sw, oy + sh);
 
-        View win = getChildAt(1);
+        View win = getChildAt(n - 1);
         int bx = ox + Math.round(BOX_L * scale), by = oy + Math.round(BOX_T * scale);
         win.layout(bx, by, bx + DESIGN_W, by + DESIGN_H);
         win.setPivotX(0);

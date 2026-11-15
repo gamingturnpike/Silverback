@@ -24,6 +24,12 @@
         android:scaleType="fitXY"
         android:src="@drawable/silverback_overlay" />
 
+    <!-- Torches, lantern, eyes, waveform bars, fog, embers, moon, waterfall -->
+    <com.echoes.silverback.EffectsView
+        android:id="@+id/effects"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
     <!-- Song window: designed at 1095x462 px, scaled into the overlay's black screen -->
     <FrameLayout
         android:id="@+id/window"
