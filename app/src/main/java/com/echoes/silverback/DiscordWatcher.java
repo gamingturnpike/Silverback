@@ -201,8 +201,9 @@ final class DiscordWatcher {
                 return;
             }
             if (!content.toLowerCase().contains("suno.")) return;
-            log("Link from " + (author != null ? author.optString("username") : "someone"));
-            Player.get(ctx).addFromText(content);
+            String uid = author != null ? author.optString("id") : "unknown";
+            String name = author != null ? author.optString("username") : "someone";
+            Player.get(ctx).addFromDiscord(content, uid, name);
         }
     }
 

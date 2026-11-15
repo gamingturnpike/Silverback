@@ -12,6 +12,9 @@ public final class Song {
     public final String artist;
     public final String imageUrl;
     public volatile Bitmap cover;
+    /** Discord user who requested it (empty when you added it yourself). */
+    public String requesterId = "";
+    public String requesterName = "";
 
     public Song(String link, String id, String title, String artist, String imageUrl) {
         this.link = link;
@@ -32,6 +35,8 @@ public final class Song {
         o.put("title", title);
         o.put("artist", artist);
         o.put("image", imageUrl == null ? "" : imageUrl);
+        o.put("reqId", requesterId);
+        o.put("reqName", requesterName);
         return o;
     }
 
@@ -39,11 +44,14 @@ public final class Song {
         String id = o.optString("id", "");
         if (id.isEmpty()) return null;
         String image = o.optString("image", "");
-        return new Song(
+        Song s = new Song(
                 o.optString("link", ""),
                 id,
                 o.optString("title", "Suno track"),
                 o.optString("artist", ""),
                 image.isEmpty() ? null : image);
+        s.requesterId = o.optString("reqId", "");
+        s.requesterName = o.optString("reqName", "");
+        return s;
     }
 }

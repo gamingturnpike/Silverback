@@ -141,6 +141,35 @@ public final class Player {
     }
 
     public void add(String link) {
+        add(link, "", "");
+    }
+
+    // Discord users with a link still loading
+    private final java.util.Set<String> pendingRequesters = new java.util.HashSet<>();
+
+    /** True if this Discord user already has a song playing, queued, or loading. */
+    private boolean hasSong(String userId) {
+        if (pendingRequesters.contains(userId)) return true;
+        if (current != null && userId.equals(current.requesterId)) return true;
+        for (Song q : queue) if (userId.equals(q.requesterId)) return true;
+        return false;
+    }
+
+    /** Links posted in Discord: one song at a time per person. */
+    public void addFromDiscord(String text, String userId, String userName) {
+        List<String> links = SunoResolver.extractLinks(text);
+        if (links.isEmpty()) return;
+        if (hasSong(userId)) {
+            log("Skipped link from " + userName + " — they already have a song in the queue");
+            return;
+        }
+        if (links.size() > 1) log(userName + " posted " + links.size() + " links — only the first is used");
+        log("Link from " + userName + ": " + links.get(0));
+        pendingRequesters.add(userId);
+        add(links.get(0), userId, userName);
+    }
+
+    private void add(String link, String reqId, String reqName) {
         io.execute(() -> {
             log("Loading song info…");
             Song s = SunoResolver.resolve(link);
@@ -152,10 +181,13 @@ public final class Player {
                 log("Song info FAILED: " + SunoResolver.lastError);
             }
             main.post(() -> {
+                if (!reqId.isEmpty()) pendingRequesters.remove(reqId);
                 if (s == null) {
                     toast("Couldn't load that Suno link");
                     return;
                 }
+                s.requesterId = reqId;
+                s.requesterName = reqName;
                 queue.add(s);
                 save();
                 if (current == null) playNext();
