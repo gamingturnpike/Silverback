@@ -81,6 +81,7 @@ final class DiscordWatcher {
     void start() {
         if (token().isEmpty()) {
             log("No bot token saved");
+            toast("Discord: paste the bot token first");
             return;
         }
         prefs.edit().putBoolean("discord_on", true).apply();
@@ -189,6 +190,7 @@ final class DiscordWatcher {
             backoffMs = 5000;
             log("Connected as " + (user != null ? user.optString("username") : "bot")
                     + " — watching channel " + channel());
+            toast("Discord connected as " + (user != null ? user.optString("username") : "bot"));
             PlayerService.updateIfRunning(ctx);
         } else if ("MESSAGE_CREATE".equals(type)) {
             String ch = d.optString("channel_id");
@@ -219,16 +221,19 @@ final class DiscordWatcher {
         main.removeCallbacks(heartbeat);
         if (code == 4004) {
             log("Bot token is wrong — reset it in the Developer Portal and paste it again");
+            toast("Discord: bot token is wrong");
             wanted = false;
             return;
         }
         if (code == 4014 || code == 4013) {
             log("Turn on MESSAGE CONTENT INTENT in the Developer Portal (Bot page)");
+            toast("Discord: turn on MESSAGE CONTENT INTENT on the bot's page, then Save Changes");
             wanted = false;
             return;
         }
         if (wanted) {
             log("Connection lost (" + code + " " + reason + ") — retrying in " + backoffMs / 1000 + "s");
+            if (backoffMs == 5000) toast("Discord: can't connect (" + code + " " + reason + ")");
             main.postDelayed(this::connect, backoffMs);
             backoffMs = Math.min(backoffMs * 2, 60000);
         }
@@ -236,6 +241,10 @@ final class DiscordWatcher {
 
     private void send(String json) {
         if (ws != null) ws.send(json);
+    }
+
+    private void toast(String msg) {
+        main.post(() -> android.widget.Toast.makeText(ctx, msg, android.widget.Toast.LENGTH_LONG).show());
     }
 
     private void log(String msg) {
