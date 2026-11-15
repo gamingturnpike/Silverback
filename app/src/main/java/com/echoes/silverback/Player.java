@@ -164,9 +164,19 @@ public final class Player {
         });
     }
 
+    /** Skip button. */
+    public void skip() {
+        log("Skip pressed — " + (queue.isEmpty() ? "nothing up next, stopping" : "next: " + queue.get(0).title));
+        playNext();
+    }
+
+    private static final String STOP_JS =
+            "document.querySelectorAll('audio,video').forEach(function(a){try{a.pause();a.removeAttribute('src');a.load();}catch(e){}})";
+
     public void playNext() {
         main.removeCallbacks(poll);
         generation++;
+        if (web != null) web.evaluateJavascript(STOP_JS, null);
         if (queue.isEmpty()) {
             current = null;
             if (web != null) web.loadUrl("about:blank");
@@ -312,16 +322,28 @@ public final class Player {
         }
     }
 
+    // Uses Suno's own play/pause button (keeps its player in sync); falls back to the audio element.
+    private static final String TOGGLE_JS =
+            "(function(){var a=document.querySelector('audio');var b=document.querySelector('button');"
+                    + "var was=a?a.paused:null;if(b){b.click();}else if(a){if(a.paused)a.play();else a.pause();}"
+                    + "setTimeout(function(){var a2=document.querySelector('audio');"
+                    + "if(a2&&was!==null&&a2.paused===was){if(was)a2.play();else a2.pause();"
+                    + "SilverBack.log('Button did not respond, used audio '+(was?'play':'pause'));}"
+                    + "SilverBack.log('Now '+(a2?(a2.paused?'paused':'playing'):'no audio'));},800);})()";
+
     public void togglePause() {
         if (current == null) {
+            log("Play pressed — " + (queue.isEmpty() ? "queue is empty" : "starting queue"));
             if (!queue.isEmpty()) playNext();
             return;
         }
-        if (web == null) return;
+        if (web == null) {
+            log("Play/Pause pressed but player isn't ready");
+            return;
+        }
+        log((audioPaused ? "Play" : "Pause") + " pressed");
         userPaused = !audioPaused;
-        web.evaluateJavascript(
-                "(function(){var a=document.querySelector('audio');if(!a){var b=document.querySelector('button');if(b)b.click();return;}"
-                        + "if(a.paused){a.play();}else{a.pause();}})()", null);
+        web.evaluateJavascript(TOGGLE_JS, null);
         audioPaused = userPaused;
         changed();
     }

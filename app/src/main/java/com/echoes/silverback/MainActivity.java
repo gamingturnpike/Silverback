@@ -82,7 +82,7 @@ public class MainActivity extends Activity implements Player.Listener {
 
         findViewById(R.id.stage).setOnClickListener(v -> toggleControls());
         btnPlay.setOnClickListener(v -> { player.togglePause(); bumpControls(); });
-        findViewById(R.id.btn_skip).setOnClickListener(v -> { player.playNext(); bumpControls(); });
+        findViewById(R.id.btn_skip).setOnClickListener(v -> { player.skip(); bumpControls(); });
         findViewById(R.id.btn_mini).setOnClickListener(v -> goMini());
         findViewById(R.id.btn_discord).setOnClickListener(v -> discordSettings());
         findViewById(R.id.btn_paste).setOnClickListener(v -> { pasteLink(); bumpControls(); });

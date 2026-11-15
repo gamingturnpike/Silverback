@@ -92,7 +92,7 @@ public class QueueActivity extends Activity implements Player.Listener {
         root.addView(controls, clp);
         playBtn = button("PLAY", v -> player.togglePause());
         controls.addView(playBtn, weight());
-        controls.addView(button("SKIP", v -> player.playNext()), weight());
+        controls.addView(button("SKIP", v -> player.skip()), weight());
         controls.addView(button("PASTE LINK", v -> paste()), weight());
         controls.addView(button("STAGE", v -> backToStage()), weight());
 
