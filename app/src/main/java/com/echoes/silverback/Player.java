@@ -6,7 +6,6 @@ import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.os.Handler;
 import android.os.Looper;
-import android.view.View;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
@@ -131,6 +130,11 @@ public final class Player {
         start(current);
     }
 
+    /** The WebView running Suno's player, so the stage can keep it attached on screen. */
+    WebView engineView() {
+        return engine();
+    }
+
     @SuppressLint({"SetJavaScriptEnabled", "AddJavascriptInterface"})
     private WebView engine() {
         if (web != null) return web;
@@ -139,9 +143,7 @@ public final class Player {
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);
         s.setMediaPlaybackRequiresUserGesture(false);
-        w.measure(View.MeasureSpec.makeMeasureSpec(800, View.MeasureSpec.EXACTLY),
-                View.MeasureSpec.makeMeasureSpec(800, View.MeasureSpec.EXACTLY));
-        w.layout(0, 0, 800, 800);
+        s.setUserAgentString(s.getUserAgentString().replace("; wv", ""));
         w.addJavascriptInterface(new Bridge(), "SilverBack");
         if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
             WebViewCompat.addDocumentStartJavaScript(w, KEEP_VISIBLE_JS,

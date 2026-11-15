@@ -14,6 +14,9 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.View;
+import android.view.ViewGroup;
+import android.webkit.WebView;
+import android.widget.FrameLayout;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
 import android.view.WindowManager;
@@ -64,9 +67,11 @@ public class MainActivity extends Activity implements Player.Listener {
         findViewById(R.id.stage).setOnClickListener(v -> toggleControls());
         btnPlay.setOnClickListener(v -> { player.togglePause(); bumpControls(); });
         findViewById(R.id.btn_skip).setOnClickListener(v -> { player.playNext(); bumpControls(); });
+        findViewById(R.id.btn_mini).setOnClickListener(v -> goMini());
         findViewById(R.id.btn_paste).setOnClickListener(v -> { pasteLink(); bumpControls(); });
         findViewById(R.id.btn_clear).setOnClickListener(v -> { player.clearUpNext(); bumpControls(); });
 
+        attachEngine();
         hideSystemBars();
         setPictureInPictureParams(pipParams());
         if (Build.VERSION.SDK_INT >= 33
@@ -116,6 +121,29 @@ public class MainActivity extends Activity implements Player.Listener {
         player.removeListener(this);
         handler.removeCallbacks(tick);
         super.onStop();
+    }
+
+    /** Suno's player must sit in a real on-screen window to play reliably; it hides behind the stage. */
+    private void attachEngine() {
+        WebView w = player.engineView();
+        if (w.getParent() instanceof ViewGroup) ((ViewGroup) w.getParent()).removeView(w);
+        ((FrameLayout) findViewById(R.id.engine_host)).addView(w,
+                new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+    }
+
+    @Override
+    protected void onDestroy() {
+        WebView w = player.engineView();
+        if (w.getParent() instanceof ViewGroup) ((ViewGroup) w.getParent()).removeView(w);
+        super.onDestroy();
+    }
+
+    private void goMini() {
+        try {
+            enterPictureInPictureMode(pipParams());
+        } catch (Exception e) {
+            Toast.makeText(this, "Turn on Picture-in-picture for SilverBack in Settings", Toast.LENGTH_LONG).show();
+        }
     }
 
     /** Mini window keeps the whole stage at the overlay's shape. */

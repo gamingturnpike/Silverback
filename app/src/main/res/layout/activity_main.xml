@@ -1,5 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<com.echoes.silverback.StageLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/black">
+
+    <!-- Suno's player lives here, hidden behind the stage -->
+    <FrameLayout
+        android:id="@+id/engine_host"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+<com.echoes.silverback.StageLayout
     android:id="@+id/stage"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -156,8 +167,10 @@
 
             <TextView android:id="@+id/btn_play" style="@style/StageButton" android:text="PLAY" />
             <TextView android:id="@+id/btn_skip" style="@style/StageButton" android:text="SKIP" />
+            <TextView android:id="@+id/btn_mini" style="@style/StageButton" android:text="MINI" />
             <TextView android:id="@+id/btn_paste" style="@style/StageButton" android:text="PASTE LINK" />
             <TextView android:id="@+id/btn_clear" style="@style/StageButton" android:text="CLEAR UP NEXT" />
         </LinearLayout>
     </FrameLayout>
 </com.echoes.silverback.StageLayout>
+</FrameLayout>
