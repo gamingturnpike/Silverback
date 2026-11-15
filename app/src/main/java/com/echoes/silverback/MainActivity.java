@@ -27,6 +27,11 @@ import android.view.WindowManager;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.ScrollView;
+import android.graphics.SurfaceTexture;
+import android.media.MediaPlayer;
+import android.net.Uri;
+import android.view.Surface;
+import android.view.TextureView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -89,6 +94,7 @@ public class MainActivity extends Activity implements Player.Listener {
         findViewById(R.id.btn_clear).setOnClickListener(v -> { player.clearUpNext(); bumpControls(); });
 
         attachEngine();
+        setupStageVideo();
         hideSystemBars();
         setPictureInPictureParams(pipParams());
         if (Build.VERSION.SDK_INT >= 33
@@ -131,6 +137,10 @@ public class MainActivity extends Activity implements Player.Listener {
         super.onStart();
         player.addListener(this);
         onPlayerChanged();
+        try {
+            if (stageVideo != null) stageVideo.start();
+        } catch (IllegalStateException ignored) {
+        }
         handler.post(tick);
     }
 
@@ -138,7 +148,58 @@ public class MainActivity extends Activity implements Player.Listener {
     protected void onStop() {
         player.removeListener(this);
         handler.removeCallbacks(tick);
+        try {
+            if (stageVideo != null && stageVideo.isPlaying()) stageVideo.pause();
+        } catch (IllegalStateException ignored) {
+        }
         super.onStop();
+    }
+
+    // ---- animated stage loop ----
+    private MediaPlayer stageVideo;
+
+    private void setupStageVideo() {
+        TextureView tv = findViewById(R.id.stage_video);
+        tv.setOpaque(false);
+        tv.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
+            @Override
+            public void onSurfaceTextureAvailable(SurfaceTexture st, int w, int h) {
+                try {
+                    MediaPlayer mp = new MediaPlayer();
+                    mp.setDataSource(MainActivity.this,
+                            Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.stage_loop));
+                    mp.setSurface(new Surface(st));
+                    mp.setLooping(true);
+                    mp.setVolume(0f, 0f);
+                    mp.setOnPreparedListener(MediaPlayer::start);
+                    mp.setOnErrorListener((m, what, extra) -> {
+                        player.log("Stage video error " + what + "/" + extra);
+                        return true;
+                    });
+                    mp.prepareAsync();
+                    stageVideo = mp;
+                } catch (Exception e) {
+                    player.log("Stage video failed: " + e.getMessage());
+                }
+            }
+
+            @Override
+            public void onSurfaceTextureSizeChanged(SurfaceTexture st, int w, int h) {
+            }
+
+            @Override
+            public boolean onSurfaceTextureDestroyed(SurfaceTexture st) {
+                if (stageVideo != null) {
+                    stageVideo.release();
+                    stageVideo = null;
+                }
+                return true;
+            }
+
+            @Override
+            public void onSurfaceTextureUpdated(SurfaceTexture st) {
+            }
+        });
     }
 
     /** Suno's player must sit in a real on-screen window to play reliably; it hides behind the stage. */

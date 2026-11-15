@@ -62,6 +62,13 @@ public class EffectsView extends View {
 
     private RadialGradient warm, red, moonGlow, fogGlow, emberGlow;
     private long last;
+    /** When the animated video is playing it already animates the torches, eyes, bars,
+     *  moon and waterfall, so only fog and embers are drawn on top. */
+    private boolean videoMode = true;
+
+    public void setVideoMode(boolean on) {
+        videoMode = on;
+    }
     private float lanternFlick = 1, torchAFlick = 1, torchBFlick = 1;
 
     private final Runnable tick = new Runnable() {
@@ -180,6 +187,12 @@ public class EffectsView extends View {
         c.save();
         c.scale(getWidth() / W, getHeight() / H);
 
+        if (!videoMode) drawArtEffects(c, t, dt, playing);
+        drawAtmosphere(c, t, dt);
+        c.restore();
+    }
+
+    private void drawArtEffects(Canvas c, float t, float dt, boolean playing) {
         // 7. Moon glow
         glowAt(c, MOON, moonGlow, 0.55f + 0.25f * (float) Math.sin(t * 0.8f), 1);
 
@@ -230,6 +243,9 @@ public class EffectsView extends View {
             }
         }
 
+    }
+
+    private void drawAtmosphere(Canvas c, float t, float dt) {
         // 5. Fog drifting across the bottom
         glow.setShader(fogGlow);
         glow.setAlpha(255);
@@ -265,6 +281,5 @@ public class EffectsView extends View {
             c.restore();
         }
 
-        c.restore();
     }
 }

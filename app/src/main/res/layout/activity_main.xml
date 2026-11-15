@@ -24,7 +24,13 @@
         android:scaleType="fitXY"
         android:src="@drawable/silverback_overlay" />
 
-    <!-- Torches, lantern, eyes, waveform bars, fog, embers, moon, waterfall -->
+    <!-- Animated Silverback After Dark loop (plays over the still art) -->
+    <TextureView
+        android:id="@+id/stage_video"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <!-- Code effects on top of the video: fog + embers -->
     <com.echoes.silverback.EffectsView
         android:id="@+id/effects"
         android:layout_width="match_parent"
