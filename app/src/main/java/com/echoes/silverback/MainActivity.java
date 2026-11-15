@@ -145,10 +145,7 @@ public class MainActivity extends Activity implements Player.Listener {
         super.onStart();
         player.addListener(this);
         onPlayerChanged();
-        try {
-            if (stageVideo != null) stageVideo.start();
-        } catch (IllegalStateException ignored) {
-        }
+        resumeStageVideo();
         handler.post(tick);
     }
 
@@ -157,7 +154,8 @@ public class MainActivity extends Activity implements Player.Listener {
         player.removeListener(this);
         handler.removeCallbacks(tick);
         try {
-            if (stageVideo != null && stageVideo.isPlaying()) stageVideo.pause();
+            // keep animating in the mini window; only pause when SilverBack is really closed
+            if (stageVideo != null && stageVideo.isPlaying() && !isInPictureInPictureMode()) stageVideo.pause();
         } catch (IllegalStateException ignored) {
         }
         super.onStop();
@@ -165,6 +163,14 @@ public class MainActivity extends Activity implements Player.Listener {
 
     // ---- animated stage loop ----
     private MediaPlayer stageVideo;
+    private boolean stageVideoReady;
+
+    private void resumeStageVideo() {
+        try {
+            if (stageVideo != null && stageVideoReady && !stageVideo.isPlaying()) stageVideo.start();
+        } catch (IllegalStateException ignored) {
+        }
+    }
 
     private void setupStageVideo() {
         TextureView tv = findViewById(R.id.stage_video);
@@ -179,7 +185,10 @@ public class MainActivity extends Activity implements Player.Listener {
                     mp.setSurface(new Surface(st));
                     mp.setLooping(true);
                     mp.setVolume(0f, 0f);
-                    mp.setOnPreparedListener(MediaPlayer::start);
+                    mp.setOnPreparedListener(m -> {
+                        stageVideoReady = true;
+                        m.start();
+                    });
                     mp.setOnErrorListener((m, what, extra) -> {
                         player.log("Stage video error " + what + "/" + extra);
                         return true;
@@ -200,6 +209,7 @@ public class MainActivity extends Activity implements Player.Listener {
                 if (stageVideo != null) {
                     stageVideo.release();
                     stageVideo = null;
+                    stageVideoReady = false;
                 }
                 return true;
             }
@@ -292,6 +302,7 @@ public class MainActivity extends Activity implements Player.Listener {
     @Override
     public void onPictureInPictureModeChanged(boolean inPip, Configuration newConfig) {
         super.onPictureInPictureModeChanged(inPip, newConfig);
+        resumeStageVideo();
         if (inPip) {
             handler.removeCallbacks(hideControls);
             controls.setVisibility(View.GONE);
