@@ -99,6 +99,13 @@ final class DiscordWatcher {
         else PlayerService.updateIfRunning(ctx);
     }
 
+    /** Closing the app: disconnect but remember it was on, so it reconnects next launch. */
+    void pauseForExit() {
+        if (!wanted) return;
+        wanted = false;
+        disconnect();
+    }
+
     private void disconnect() {
         gen++;
         connected = false;

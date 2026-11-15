@@ -164,6 +164,23 @@ public final class Player {
         });
     }
 
+    /** Stops the music and keeps the current song at the top of the queue for next time. */
+    public void shutdown() {
+        main.removeCallbacks(poll);
+        generation++;
+        if (web != null) {
+            web.evaluateJavascript(STOP_JS, null);
+            web.loadUrl("about:blank");
+        }
+        if (current != null) queue.add(0, current);
+        current = null;
+        started = false;
+        audioPaused = true;
+        save();
+        log("SilverBack closed");
+        changed();
+    }
+
     /** Skip button. */
     public void skip() {
         log("Skip pressed — " + (queue.isEmpty() ? "nothing up next, stopping" : "next: " + queue.get(0).title));

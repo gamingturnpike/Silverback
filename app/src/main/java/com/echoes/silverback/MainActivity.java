@@ -39,6 +39,8 @@ import java.util.Locale;
 
 public class MainActivity extends Activity implements Player.Listener {
 
+    static final String ACTION_EXIT = "com.echoes.silverback.EXIT";
+
     private Player player;
     private View nowGroup, controls;
     private ImageView cover;
@@ -113,6 +115,12 @@ public class MainActivity extends Activity implements Player.Listener {
     }
 
     private void handleShare(Intent i) {
+        if (i != null && ACTION_EXIT.equals(i.getAction())) {
+            PlayerService.shutdown(this);
+            QueueActivity.closeIfOpen();
+            finishAndRemoveTask();
+            return;
+        }
         if (i == null || !Intent.ACTION_SEND.equals(i.getAction())) return;
         String text = i.getStringExtra(Intent.EXTRA_TEXT);
         i.setAction(null);

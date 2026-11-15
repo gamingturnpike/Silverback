@@ -29,6 +29,13 @@ public class QueueActivity extends Activity implements Player.Listener {
     private static final int BG = Color.parseColor("#0E0E10");
     private static final int CARD = Color.parseColor("#1A1A1E");
 
+    private static java.lang.ref.WeakReference<QueueActivity> open;
+
+    static void closeIfOpen() {
+        QueueActivity q = open != null ? open.get() : null;
+        if (q != null) q.finishAndRemoveTask();
+    }
+
     private Player player;
     private ImageView cover;
     private TextView nowTitle, nowArtist, playBtn, count;
@@ -43,6 +50,7 @@ public class QueueActivity extends Activity implements Player.Listener {
         getWindow().setStatusBarColor(BG);
         getWindow().setNavigationBarColor(BG);
         player = Player.get(this);
+        open = new java.lang.ref.WeakReference<>(this);
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
