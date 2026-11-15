@@ -119,7 +119,7 @@ public class QueuePanel extends LinearLayout implements Player.Listener {
         LinearLayout.LayoutParams vlp = new LinearLayout.LayoutParams(-1, -2);
         vlp.topMargin = dp(12);
         root.addView(volRow, vlp);
-        TextView volLabel = text("STREAM VOL " + player.volumePercent() + "%", 12, Color.parseColor("#B5B5B5"), true);
+        TextView volLabel = text("VOLUME " + player.volumePercent() + "%", 12, Color.parseColor("#B5B5B5"), true);
         volRow.addView(volLabel, new LinearLayout.LayoutParams(dp(110), -2));
         SeekBar vol = new SeekBar(ctx);
         vol.setMax(100);
@@ -131,7 +131,7 @@ public class QueuePanel extends LinearLayout implements Player.Listener {
             public void onProgressChanged(SeekBar sb, int p, boolean fromUser) {
                 if (!fromUser) return;
                 player.setVolumePercent(p);
-                volLabel.setText("STREAM VOL " + p + "%");
+                volLabel.setText("VOLUME " + p + "%");
             }
 
             @Override

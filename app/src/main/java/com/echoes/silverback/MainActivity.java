@@ -275,7 +275,7 @@ public class MainActivity extends Activity implements Player.Listener {
     private void changeVolume(int delta) {
         player.setVolumePercent(player.volumePercent() + delta);
         TextView l = findViewById(R.id.vol_label);
-        l.setText("STREAM VOLUME " + player.volumePercent() + "%");
+        l.setText("VOLUME " + player.volumePercent() + "%");
         l.setVisibility(View.VISIBLE);
         handler.removeCallbacks(hideVol);
         handler.postDelayed(hideVol, 1500);
