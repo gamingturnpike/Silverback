@@ -166,6 +166,91 @@ public class MainActivity extends Activity implements Player.Listener {
         super.onStop();
     }
 
+    // ---- animated (video) cover art ----
+    private MediaPlayer coverPlayer;
+    private String coverVideoUrl;
+    private Surface coverSurface;
+
+    private void updateCoverVideo(String url) {
+        if (url == null ? coverVideoUrl == null : url.equals(coverVideoUrl)) return;
+        coverVideoUrl = url;
+        TextureView tv = findViewById(R.id.cover_video);
+        if (coverPlayer != null) {
+            coverPlayer.release();
+            coverPlayer = null;
+        }
+        if (url == null) {
+            tv.setVisibility(View.INVISIBLE);
+            return;
+        }
+        if (tv.getSurfaceTextureListener() == null) {
+            tv.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
+                @Override
+                public void onSurfaceTextureAvailable(SurfaceTexture st, int w, int h) {
+                    coverSurface = new Surface(st);
+                    startCoverVideo();
+                }
+
+                @Override
+                public void onSurfaceTextureSizeChanged(SurfaceTexture st, int w, int h) {
+                }
+
+                @Override
+                public boolean onSurfaceTextureDestroyed(SurfaceTexture st) {
+                    if (coverPlayer != null) {
+                        coverPlayer.release();
+                        coverPlayer = null;
+                    }
+                    coverSurface = null;
+                    return true;
+                }
+
+                @Override
+                public void onSurfaceTextureUpdated(SurfaceTexture st) {
+                }
+            });
+        }
+        if (tv.isAvailable() && coverSurface == null) coverSurface = new Surface(tv.getSurfaceTexture());
+        startCoverVideo();
+    }
+
+    private void startCoverVideo() {
+        TextureView tv = findViewById(R.id.cover_video);
+        if (coverVideoUrl == null || coverSurface == null || coverPlayer != null) return;
+        try {
+            MediaPlayer mp = new MediaPlayer();
+            mp.setDataSource(coverVideoUrl);
+            mp.setSurface(coverSurface);
+            mp.setLooping(true);
+            mp.setVolume(0f, 0f);
+            mp.setOnVideoSizeChangedListener((m, vw, vh) -> cropToSquare(tv, vw, vh));
+            mp.setOnPreparedListener(m -> {
+                m.start();
+                tv.setVisibility(View.VISIBLE);
+            });
+            mp.setOnErrorListener((m, a, b) -> {
+                tv.setVisibility(View.INVISIBLE);
+                return true;
+            });
+            mp.prepareAsync();
+            coverPlayer = mp;
+        } catch (Exception e) {
+            tv.setVisibility(View.INVISIBLE);
+        }
+    }
+
+    /** Fill the square cover box without stretching the video (center crop). */
+    private void cropToSquare(TextureView tv, int vw, int vh) {
+        if (vw <= 0 || vh <= 0) return;
+        float vwR = tv.getWidth(), vhR = tv.getHeight();
+        if (vwR <= 0 || vhR <= 0) return;
+        float scale = Math.max(vwR / vw, vhR / vh);
+        float sx = vw * scale / vwR, sy = vh * scale / vhR;
+        android.graphics.Matrix m = new android.graphics.Matrix();
+        m.setScale(sx, sy, vwR / 2f, vhR / 2f);
+        tv.setTransform(m);
+    }
+
     // ---- animated stage loop ----
     private MediaPlayer stageVideo;
     private boolean stageVideoReady;
@@ -355,6 +440,7 @@ public class MainActivity extends Activity implements Player.Listener {
         Song s = player.current;
         boolean has = s != null;
         nowGroup.setVisibility(has ? View.VISIBLE : View.INVISIBLE);
+        if (!has) updateCoverVideo(null);
         empty.setVisibility(has ? View.GONE : View.VISIBLE);
         btnPlay.setText(player.isPlaying() ? "PAUSE" : "PLAY");
         if (has) {
@@ -362,6 +448,7 @@ public class MainActivity extends Activity implements Player.Listener {
             artist.setText(s.artist);
             artist.setVisibility(s.artist.isEmpty() ? View.GONE : View.VISIBLE);
             cover.setImageBitmap(s.cover);
+            updateCoverVideo(s.isVideoCover() ? s.imageUrl : null);
         }
         StringBuilder sb = new StringBuilder();
         int n = player.queue.size();

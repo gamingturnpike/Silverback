@@ -193,6 +193,7 @@ final class SunoResolver {
 
     static Bitmap loadBitmap(String url) {
         if (url == null) return null;
+        if (url.toLowerCase().matches(".*\\.(mp4|webm|mov|m4v)(\\?.*)?$")) return videoFrame(url);
         try {
             HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
             c.setConnectTimeout(10000);
@@ -214,6 +215,29 @@ final class SunoResolver {
             return BitmapFactory.decodeByteArray(data, 0, data.length, opts);
         } catch (Throwable e) {
             return null;
+        }
+    }
+
+    /** Still frame from a video cover (used for thumbnails and while the video loads). */
+    private static Bitmap videoFrame(String url) {
+        android.media.MediaMetadataRetriever r = new android.media.MediaMetadataRetriever();
+        try {
+            r.setDataSource(url, new java.util.HashMap<>());
+            Bitmap b = r.getFrameAtTime(500_000, android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC);
+            if (b == null) return null;
+            int max = Math.max(b.getWidth(), b.getHeight());
+            if (max > 700) {
+                float k = 700f / max;
+                b = Bitmap.createScaledBitmap(b, Math.round(b.getWidth() * k), Math.round(b.getHeight() * k), true);
+            }
+            return b;
+        } catch (Throwable e) {
+            return null;
+        } finally {
+            try {
+                r.release();
+            } catch (Exception ignored) {
+            }
         }
     }
 

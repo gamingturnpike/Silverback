@@ -26,6 +26,11 @@ public final class Song {
         this.imageUrl = imageUrl;
     }
 
+    /** Some Rig-Radio songs use a short looping video as their cover. */
+    boolean isVideoCover() {
+        return imageUrl != null && imageUrl.toLowerCase().matches(".*\\.(mp4|webm|mov|m4v)(\\?.*)?$");
+    }
+
     String embedUrl() {
         return "https://suno.com/embed/" + id;
     }
