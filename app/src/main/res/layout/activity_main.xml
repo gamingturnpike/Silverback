@@ -244,5 +244,11 @@
             <TextView android:id="@+id/btn_vol_up" style="@style/StageButton" android:text="VOL +" />
         </LinearLayout>
     </FrameLayout>
+
+    <!-- Bananas fall when a song gets added -->
+    <com.echoes.silverback.BananaRainView
+        android:id="@+id/banana_rain"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
 </com.echoes.silverback.StageLayout>
 </FrameLayout>

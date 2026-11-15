@@ -165,6 +165,17 @@ public final class Player {
 
     public void addListener(Listener l) { listeners.add(l); }
 
+    /** Called (main thread) every time a song lands in the queue. */
+    public interface AddListener {
+        void onSongAdded(Song s);
+    }
+
+    private final CopyOnWriteArraySet<AddListener> addListeners = new CopyOnWriteArraySet<>();
+
+    public void addAddListener(AddListener l) { addListeners.add(l); }
+
+    public void removeAddListener(AddListener l) { addListeners.remove(l); }
+
     public void removeListener(Listener l) { listeners.remove(l); }
 
     /** Pulls every Suno link out of shared/pasted text and queues it. Returns how many were found. */
@@ -256,6 +267,7 @@ public final class Player {
                 s.requesterId = reqId;
                 s.requesterName = reqName;
                 queue.add(s);
+                for (AddListener l : addListeners) l.onSongAdded(s);
                 if (result != null) result.added(s, extra);
                 save();
                 if (current == null) playNext();

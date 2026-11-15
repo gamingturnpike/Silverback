@@ -149,6 +149,7 @@ public class MainActivity extends Activity implements Player.Listener {
     protected void onStart() {
         super.onStart();
         player.addListener(this);
+        player.addAddListener(bananas);
         onPlayerChanged();
         resumeStageVideo();
         handler.post(tick);
@@ -157,6 +158,7 @@ public class MainActivity extends Activity implements Player.Listener {
     @Override
     protected void onStop() {
         player.removeListener(this);
+        player.removeAddListener(bananas);
         handler.removeCallbacks(tick);
         try {
             // keep animating in the mini window; only pause when SilverBack is really closed
@@ -165,6 +167,10 @@ public class MainActivity extends Activity implements Player.Listener {
         }
         super.onStop();
     }
+
+    // 🍌 banana shower whenever a song is added
+    private final Player.AddListener bananas = s ->
+            ((BananaRainView) findViewById(R.id.banana_rain)).drop();
 
     // ---- animated (video) cover art ----
     private MediaPlayer coverPlayer;
