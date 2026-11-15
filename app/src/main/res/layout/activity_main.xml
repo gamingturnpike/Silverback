@@ -183,6 +183,23 @@
                 android:textSize="15px" />
         </ScrollView>
 
+        <!-- Volume readout, shows briefly when you change volume -->
+        <TextView
+            android:id="@+id/vol_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="top|end"
+            android:layout_margin="16px"
+            android:background="@drawable/controls_bg"
+            android:paddingStart="18px"
+            android:paddingTop="8px"
+            android:paddingEnd="18px"
+            android:paddingBottom="8px"
+            android:textColor="#FFFFFF"
+            android:textSize="22px"
+            android:textStyle="bold"
+            android:visibility="gone" />
+
         <!-- Tap the stage to show for 4 seconds -->
         <LinearLayout
             android:id="@+id/controls"
@@ -201,7 +218,9 @@
             <TextView android:id="@+id/btn_mini" style="@style/StageButton" android:text="MINI" />
             <TextView android:id="@+id/btn_discord" style="@style/StageButton" android:text="DISCORD" />
             <TextView android:id="@+id/btn_paste" style="@style/StageButton" android:text="PASTE LINK" />
-            <TextView android:id="@+id/btn_clear" style="@style/StageButton" android:text="CLEAR UP NEXT" />
+            <TextView android:id="@+id/btn_clear" style="@style/StageButton" android:text="CLEAR" />
+            <TextView android:id="@+id/btn_vol_down" style="@style/StageButton" android:text="VOL −" />
+            <TextView android:id="@+id/btn_vol_up" style="@style/StageButton" android:text="VOL +" />
         </LinearLayout>
     </FrameLayout>
 </com.echoes.silverback.StageLayout>

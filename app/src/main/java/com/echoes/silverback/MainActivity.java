@@ -94,6 +94,8 @@ public class MainActivity extends Activity implements Player.Listener {
         findViewById(R.id.btn_discord).setOnClickListener(v -> discordSettings());
         findViewById(R.id.btn_paste).setOnClickListener(v -> { pasteLink(); bumpControls(); });
         findViewById(R.id.btn_clear).setOnClickListener(v -> { player.clearUpNext(); bumpControls(); });
+        findViewById(R.id.btn_vol_down).setOnClickListener(v -> { changeVolume(-10); bumpControls(); });
+        findViewById(R.id.btn_vol_up).setOnClickListener(v -> { changeVolume(10); bumpControls(); });
 
         attachEngine();
         setupStageVideo();
@@ -263,6 +265,17 @@ public class MainActivity extends Activity implements Player.Listener {
                 .setNeutralButton("Turn off", (d, w) -> dw.turnOff())
                 .setNegativeButton("Cancel", null)
                 .show();
+    }
+
+    private final Runnable hideVol = () -> findViewById(R.id.vol_label).setVisibility(View.GONE);
+
+    private void changeVolume(int delta) {
+        player.setVolumePercent(player.volumePercent() + delta);
+        TextView l = findViewById(R.id.vol_label);
+        l.setText("VOLUME " + player.volumePercent() + "%");
+        l.setVisibility(View.VISIBLE);
+        handler.removeCallbacks(hideVol);
+        handler.postDelayed(hideVol, 1500);
     }
 
     private void goMini() {

@@ -14,6 +14,7 @@ import android.view.Gravity;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -103,6 +104,38 @@ public class QueueActivity extends Activity implements Player.Listener {
         controls.addView(button("SKIP", v -> player.skip()), weight());
         controls.addView(button("PASTE LINK", v -> paste()), weight());
         controls.addView(button("STAGE", v -> backToStage()), weight());
+
+        // Music volume (what your stream hears)
+        LinearLayout volRow = new LinearLayout(this);
+        volRow.setOrientation(LinearLayout.HORIZONTAL);
+        volRow.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout.LayoutParams vlp = new LinearLayout.LayoutParams(-1, -2);
+        vlp.topMargin = dp(12);
+        root.addView(volRow, vlp);
+        TextView volLabel = text("VOLUME " + player.volumePercent() + "%", 12, Color.parseColor("#B5B5B5"), true);
+        volRow.addView(volLabel, new LinearLayout.LayoutParams(dp(110), -2));
+        SeekBar vol = new SeekBar(this);
+        vol.setMax(100);
+        vol.setProgress(player.volumePercent());
+        vol.setProgressTintList(android.content.res.ColorStateList.valueOf(RED));
+        vol.setThumbTintList(android.content.res.ColorStateList.valueOf(RED));
+        vol.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar sb, int p, boolean fromUser) {
+                if (!fromUser) return;
+                player.setVolumePercent(p);
+                volLabel.setText("VOLUME " + p + "%");
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar sb) {
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar sb) {
+            }
+        });
+        volRow.addView(vol, new LinearLayout.LayoutParams(0, -2, 1));
 
         count = text("", 12, Color.parseColor("#9A9A9A"), true);
         count.setLetterSpacing(0.15f);

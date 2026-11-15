@@ -55,6 +55,24 @@ public final class Player {
             "(function(){var a=document.querySelector('audio');if(!a)return '';"
                     + "return a.currentTime+','+a.duration+','+(a.paused?1:0)+','+(a.ended?1:0);})()";
 
+    // ---- music volume (only SilverBack's music; this is what the stream hears) ----
+    private float volume = 1f;
+
+    public int volumePercent() {
+        return Math.round(volume * 100);
+    }
+
+    public void setVolumePercent(int pct) {
+        volume = Math.max(0, Math.min(100, pct)) / 100f;
+        prefs.edit().putFloat("volume", volume).apply();
+        if (web != null) web.evaluateJavascript(volumeJs(), null);
+        changed();
+    }
+
+    private String volumeJs() {
+        return "document.querySelectorAll('audio').forEach(function(a){if(Math.abs(a.volume-" + volume + ")>0.001)a.volume=" + volume + ";});";
+    }
+
     private static Player instance;
 
     public static synchronized Player get(Context c) {
@@ -84,7 +102,7 @@ public final class Player {
         public void run() {
             if (current == null || web == null) return;
             final int gen = generation;
-            web.evaluateJavascript(POLL_JS, v -> onPoll(gen, v));
+            web.evaluateJavascript(volumeJs() + POLL_JS, v -> onPoll(gen, v));
             main.postDelayed(this, 1000);
         }
     };
@@ -124,6 +142,7 @@ public final class Player {
     private Player(Context ctx) {
         this.ctx = ctx;
         this.prefs = ctx.getSharedPreferences("silverback", Context.MODE_PRIVATE);
+        this.volume = prefs.getFloat("volume", 1f);
         restore();
     }
 
