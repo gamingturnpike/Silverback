@@ -33,8 +33,8 @@ final class SunoResolver {
             "/song/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})",
             Pattern.CASE_INSENSITIVE);
 
-    private static final Pattern DISPLAY_NAME = Pattern.compile(
-            "\\\\?\"display_name\\\\?\"\\s*:\\s*\\\\?\"([^\"\\\\]+)");
+    private static final Pattern TITLE_TAG = Pattern.compile(
+            "<title[^>]*>([^<]*)</title>", Pattern.CASE_INSENSITIVE);
 
     private SunoResolver() {}
 
@@ -59,74 +59,74 @@ final class SunoResolver {
     }
 
     private static Song resolveOrThrow(String link) throws IOException {
-        String id = null, title = null, artist = null, image = null, audio = null;
+        String id = null, title = null, artist = null, image = null;
 
-        if (link.toLowerCase().contains(".mp3")) {
-            audio = link;
-            Matcher m = UUID.matcher(link);
-            if (m.find()) id = m.group();
-        } else {
-            HttpURLConnection c = (HttpURLConnection) new URL(link).openConnection();
-            c.setInstanceFollowRedirects(true);
-            c.setConnectTimeout(10000);
-            c.setReadTimeout(15000);
-            c.setRequestProperty("User-Agent", UA);
-            c.setRequestProperty("Accept", "text/html");
-            String html;
-            String finalUrl;
-            try {
-                html = new String(read(c.getInputStream(), 3_000_000), StandardCharsets.UTF_8);
-                finalUrl = c.getURL().toString();
-            } finally {
-                c.disconnect();
-            }
-
-            Matcher m = SONG_PATH.matcher(finalUrl);
-            if (m.find()) id = m.group(1);
-            if (id == null) {
-                String ogUrl = meta(html, "og:url");
-                if (ogUrl != null) {
-                    Matcher u = SONG_PATH.matcher(ogUrl);
-                    if (u.find()) id = u.group(1);
-                }
-            }
-            if (id == null) {
-                Matcher h = SONG_PATH.matcher(html);
-                if (h.find()) id = h.group(1);
-            }
-
-            title = clean(meta(html, "og:title"));
-            image = meta(html, "og:image");
-            audio = meta(html, "og:audio");
-            if (audio == null) audio = meta(html, "og:audio:url");
-
-            if (title != null) {
-                title = title.replaceAll("\\s*[|\\-–]\\s*Suno.*$", "").trim();
-                int by = title.lastIndexOf(" by ");
-                if (by > 0) {
-                    artist = title.substring(by + 4).trim();
-                    title = title.substring(0, by).trim();
-                }
-            }
-            if (artist == null) {
-                String desc = clean(meta(html, "og:description"));
-                if (desc != null) {
-                    Matcher d = Pattern.compile("\\bby\\s+(@?[^.|,]+)").matcher(desc);
-                    if (d.find()) artist = d.group(1).trim();
-                }
-            }
-            if (artist == null) {
-                Matcher d = DISPLAY_NAME.matcher(html);
-                if (d.find()) artist = d.group(1).trim();
+        Matcher direct = SONG_PATH.matcher(link);
+        String fetchUrl = link;
+        if (direct.find()) {
+            id = direct.group(1);
+            fetchUrl = "https://suno.com/song/" + id;
+        } else if (link.toLowerCase().contains("cdn") && link.toLowerCase().contains("suno")) {
+            Matcher u = UUID.matcher(link);
+            if (u.find()) {
+                id = u.group();
+                fetchUrl = "https://suno.com/song/" + id;
             }
         }
 
-        if (id == null && audio == null) return null;
-        if (audio == null) audio = "https://cdn1.suno.ai/" + id + ".mp3";
-        if (image == null && id != null) image = "https://cdn2.suno.ai/image_" + id + ".jpeg";
+        HttpURLConnection c = (HttpURLConnection) new URL(fetchUrl).openConnection();
+        c.setInstanceFollowRedirects(true);
+        c.setConnectTimeout(10000);
+        c.setReadTimeout(15000);
+        c.setRequestProperty("User-Agent", UA);
+        c.setRequestProperty("Accept", "text/html");
+        String html;
+        String finalUrl;
+        try {
+            html = new String(read(c.getInputStream(), 3_000_000), StandardCharsets.UTF_8);
+            finalUrl = c.getURL().toString();
+        } finally {
+            c.disconnect();
+        }
+
+        if (id == null) {
+            Matcher m = SONG_PATH.matcher(finalUrl);
+            if (m.find()) id = m.group(1);
+        }
+        if (id == null) {
+            String ogUrl = meta(html, "og:url");
+            if (ogUrl != null) {
+                Matcher u = SONG_PATH.matcher(ogUrl);
+                if (u.find()) id = u.group(1);
+            }
+        }
+        if (id == null) {
+            Matcher h = SONG_PATH.matcher(html);
+            if (h.find()) id = h.group(1);
+        }
+        if (id == null) return null;
+
+        // <title>SONG by ARTIST | Suno</title>
+        Matcher t = TITLE_TAG.matcher(html);
+        if (t.find()) {
+            String full = clean(t.group(1));
+            if (full != null) {
+                full = full.replaceAll("\\s*\\|\\s*Suno\\s*$", "").trim();
+                int by = full.lastIndexOf(" by ");
+                if (by > 0) {
+                    title = full.substring(0, by).trim();
+                    artist = full.substring(by + 4).trim();
+                } else if (!full.isEmpty() && !full.equalsIgnoreCase("Suno")) {
+                    title = full;
+                }
+            }
+        }
+        if (title == null) title = clean(meta(html, "og:title"));
+        image = meta(html, "og:image");
+
         if (title == null || title.isEmpty()) title = "Suno track";
         if (artist == null) artist = "";
-        return new Song(link, title, artist, audio, image);
+        return new Song(link, id, title, artist, image);
     }
 
     static Bitmap loadBitmap(String url) {

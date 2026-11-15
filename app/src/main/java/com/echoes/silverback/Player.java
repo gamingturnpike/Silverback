@@ -1,29 +1,51 @@
 package com.echoes.silverback;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
-import android.media.AudioAttributes;
-import android.media.MediaPlayer;
 import android.os.Handler;
 import android.os.Looper;
-import android.os.PowerManager;
+import android.view.View;
+import android.webkit.JavascriptInterface;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
 import android.widget.Toast;
+
+import androidx.webkit.WebViewCompat;
+import androidx.webkit.WebViewFeature;
 
 import org.json.JSONArray;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-/** Queue + playback. Lives for the whole app process so music keeps going when you leave the stage. */
+/**
+ * Queue + playback. Songs play through Suno's own public embed player
+ * (suno.com/embed/ID) running in a hidden WebView — no Suno sign-in.
+ */
 public final class Player {
 
     public interface Listener {
         void onPlayerChanged();
     }
+
+    // Keeps Suno's page from pausing itself when SilverBack is in the background.
+    private static final String KEEP_VISIBLE_JS =
+            "try{Object.defineProperty(document,'hidden',{get:function(){return false}});"
+                    + "Object.defineProperty(document,'visibilityState',{get:function(){return 'visible'}});"
+                    + "document.addEventListener('visibilitychange',function(e){e.stopImmediatePropagation()},true);"
+                    + "window.addEventListener('pagehide',function(e){e.stopImmediatePropagation()},true);"
+                    + "window.addEventListener('blur',function(e){e.stopImmediatePropagation()},true);}catch(e){}";
+
+    private static final String POLL_JS =
+            "(function(){var a=document.querySelector('audio');if(!a)return '';"
+                    + "return a.currentTime+','+a.duration+','+(a.paused?1:0)+','+(a.ended?1:0);})()";
 
     private static Player instance;
 
@@ -40,9 +62,24 @@ public final class Player {
 
     final List<Song> queue = new ArrayList<>();
     Song current;
-    private MediaPlayer mp;
-    private boolean prepared;
-    private boolean paused;
+
+    private WebView web;
+    private int generation;
+    private boolean started;      // audio has actually begun
+    private boolean userPaused;
+    private boolean audioPaused = true;
+    private double posSec, durSec;
+    private long loadStartedAt;
+
+    private final Runnable poll = new Runnable() {
+        @Override
+        public void run() {
+            if (current == null || web == null) return;
+            final int gen = generation;
+            web.evaluateJavascript(POLL_JS, v -> onPoll(gen, v));
+            main.postDelayed(this, 1000);
+        }
+    };
 
     private Player(Context ctx) {
         this.ctx = ctx;
@@ -79,9 +116,11 @@ public final class Player {
     }
 
     public void playNext() {
-        release();
+        main.removeCallbacks(poll);
+        generation++;
         if (queue.isEmpty()) {
             current = null;
+            if (web != null) web.loadUrl("about:blank");
             save();
             changed();
             PlayerService.stop(ctx);
@@ -90,6 +129,46 @@ public final class Player {
         current = queue.remove(0);
         save();
         start(current);
+    }
+
+    @SuppressLint({"SetJavaScriptEnabled", "AddJavascriptInterface"})
+    private WebView engine() {
+        if (web != null) return web;
+        WebView w = new WebView(ctx);
+        WebSettings s = w.getSettings();
+        s.setJavaScriptEnabled(true);
+        s.setDomStorageEnabled(true);
+        s.setMediaPlaybackRequiresUserGesture(false);
+        w.measure(View.MeasureSpec.makeMeasureSpec(800, View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(800, View.MeasureSpec.EXACTLY));
+        w.layout(0, 0, 800, 800);
+        w.addJavascriptInterface(new Bridge(), "SilverBack");
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
+            WebViewCompat.addDocumentStartJavaScript(w, KEEP_VISIBLE_JS,
+                    Collections.singleton("https://suno.com"));
+        }
+        w.setWebViewClient(new WebViewClient() {
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                if (url != null && url.contains("/embed/")) {
+                    view.evaluateJavascript(KEEP_VISIBLE_JS, null);
+                    view.evaluateJavascript(startJs(generation), null);
+                }
+            }
+        });
+        web = w;
+        return w;
+    }
+
+    /** Clicks the embed's play button until audio is running, and reports when the song ends. */
+    private static String startJs(int gen) {
+        return "(function(){if(window.__sb===" + gen + ")return;window.__sb=" + gen + ";var n=0;"
+                + "var iv=setInterval(function(){var a=document.querySelector('audio');"
+                + "var b=document.querySelector('button');"
+                + "if(a&&!a.__sbHooked){a.__sbHooked=1;a.addEventListener('ended',function(){SilverBack.ended(" + gen + ");});}"
+                + "if(a&&!a.paused&&a.currentTime>0){clearInterval(iv);return;}"
+                + "if(b&&(!a||a.paused)&&n%6===0){b.click();}"
+                + "n++;if(n>60){clearInterval(iv);}},500);})()";
     }
 
     private void start(Song s) {
@@ -102,57 +181,63 @@ public final class Player {
                 });
             });
         }
-        MediaPlayer m = new MediaPlayer();
-        mp = m;
-        prepared = false;
-        paused = false;
-        m.setAudioAttributes(new AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_MEDIA)
-                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                .build());
-        m.setWakeMode(ctx, PowerManager.PARTIAL_WAKE_LOCK);
-        m.setOnPreparedListener(x -> {
-            if (m != mp) return;
-            prepared = true;
-            if (!paused) m.start();
-            changed();
-        });
-        m.setOnCompletionListener(x -> {
-            if (m == mp) playNext();
-        });
-        m.setOnErrorListener((x, what, extra) -> {
-            if (m == mp) {
-                toast("Couldn't play " + s.title);
-                main.post(this::playNext);
-            }
-            return true;
-        });
-        try {
-            m.setDataSource(s.audioUrl);
-            m.prepareAsync();
-        } catch (Exception e) {
-            toast("Couldn't play " + s.title);
-            main.post(this::playNext);
-            return;
-        }
+        started = false;
+        userPaused = false;
+        audioPaused = true;
+        posSec = 0;
+        durSec = 0;
+        loadStartedAt = System.currentTimeMillis();
+        engine().loadUrl(s.embedUrl());
         PlayerService.startOrUpdate(ctx);
+        main.removeCallbacks(poll);
+        main.postDelayed(poll, 1000);
         changed();
     }
 
+    private void onPoll(int gen, String raw) {
+        if (gen != generation || current == null) return;
+        String v = raw == null ? "" : raw.replace("\"", "");
+        if (v.isEmpty() || v.equals("null")) {
+            checkStuck();
+            return;
+        }
+        String[] p = v.split(",");
+        if (p.length < 4) return;
+        try {
+            posSec = Double.parseDouble(p[0]);
+            double d = Double.parseDouble(p[1]);
+            durSec = (Double.isNaN(d) || Double.isInfinite(d)) ? 0 : d;
+        } catch (NumberFormatException ignored) {
+        }
+        audioPaused = p[2].equals("1");
+        boolean ended = p[3].equals("1");
+        if (posSec > 0) started = true;
+        if (ended && started) {
+            playNext();
+            return;
+        }
+        if (!started) checkStuck();
+        changed();
+    }
+
+    private void checkStuck() {
+        if (!started && System.currentTimeMillis() - loadStartedAt > 30000) {
+            toast("Couldn't play " + current.title);
+            playNext();
+        }
+    }
+
     public void togglePause() {
-        if (mp == null) {
+        if (current == null) {
             if (!queue.isEmpty()) playNext();
             return;
         }
-        if (!prepared) {
-            paused = !paused;
-        } else if (mp.isPlaying()) {
-            mp.pause();
-            paused = true;
-        } else {
-            mp.start();
-            paused = false;
-        }
+        if (web == null) return;
+        userPaused = !audioPaused;
+        web.evaluateJavascript(
+                "(function(){var a=document.querySelector('audio');if(!a){var b=document.querySelector('button');if(b)b.click();return;}"
+                        + "if(a.paused){a.play();}else{a.pause();}})()", null);
+        audioPaused = userPaused;
         changed();
     }
 
@@ -163,27 +248,23 @@ public final class Player {
     }
 
     public boolean isPlaying() {
-        return mp != null && prepared && mp.isPlaying();
+        return current != null && started && !audioPaused;
     }
 
     public int positionMs() {
-        return (mp != null && prepared) ? mp.getCurrentPosition() : 0;
+        return (int) (posSec * 1000);
     }
 
     public int durationMs() {
-        return (mp != null && prepared) ? Math.max(0, mp.getDuration()) : 0;
+        return (int) (durSec * 1000);
     }
 
-    private void release() {
-        if (mp != null) {
-            MediaPlayer m = mp;
-            mp = null;
-            prepared = false;
-            try {
-                m.stop();
-            } catch (Exception ignored) {
-            }
-            m.release();
+    private final class Bridge {
+        @JavascriptInterface
+        public void ended(int gen) {
+            main.post(() -> {
+                if (gen == generation && current != null) playNext();
+            });
         }
     }
 
@@ -209,7 +290,10 @@ public final class Player {
     private void restore() {
         try {
             JSONArray a = new JSONArray(prefs.getString("queue", "[]"));
-            for (int i = 0; i < a.length(); i++) queue.add(Song.fromJson(a.getJSONObject(i)));
+            for (int i = 0; i < a.length(); i++) {
+                Song s = Song.fromJson(a.getJSONObject(i));
+                if (s != null) queue.add(s);
+            }
         } catch (Exception ignored) {
         }
     }
