@@ -22,7 +22,7 @@ final class SunoResolver {
             "Mozilla/5.0 (Linux; Android 14; SM-S918U) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Mobile Safari/537.36";
 
     private static final Pattern LINK = Pattern.compile(
-            "https?://(?:[a-z0-9-]+\\.)*suno\\.(?:com|ai)/[^\\s<>\"'()\\[\\]]+",
+            "https?://(?:[a-z0-9-]+\\.)*(?:suno\\.(?:com|ai)|rig-radio\\.ai)/[^\\s<>\"'()\\[\\]]+",
             Pattern.CASE_INSENSITIVE);
 
     private static final Pattern UUID = Pattern.compile(
@@ -55,13 +55,58 @@ final class SunoResolver {
     static Song resolve(String link) {
         lastError = "";
         try {
-            Song s = resolveOrThrow(link);
+            Song s = link.toLowerCase().contains("rig-radio.ai") ? resolveRigRadio(link) : resolveOrThrow(link);
             if (s == null) lastError = "no song ID found on the page";
             return s;
         } catch (Exception e) {
             lastError = e.getClass().getSimpleName() + ": " + e.getMessage();
             return null;
         }
+    }
+
+    /** Rig-Radio song pages (rig-radio.ai/songs/ID) publish a direct MP3 in og:audio. */
+    private static Song resolveRigRadio(String link) throws IOException {
+        HttpURLConnection c = (HttpURLConnection) new URL(link).openConnection();
+        c.setInstanceFollowRedirects(true);
+        c.setConnectTimeout(10000);
+        c.setReadTimeout(15000);
+        c.setRequestProperty("User-Agent", UA);
+        c.setRequestProperty("Accept", "text/html");
+        String html;
+        try {
+            html = new String(read(c.getInputStream(), 3_000_000), StandardCharsets.UTF_8);
+        } finally {
+            c.disconnect();
+        }
+        String audio = meta(html, "og:audio");
+        if (audio == null) audio = meta(html, "og:audio:secure_url");
+        Matcher u = UUID.matcher(link);
+        String id = u.find() ? u.group() : null;
+        if (audio == null && id != null) audio = "https://rig-radio.ai/api/media/audio/" + id;
+        if (audio == null) return null;
+        if (id == null) id = Integer.toHexString(link.hashCode());
+
+        String title = null, artist = "";
+        String full = clean(meta(html, "og:title"));
+        if (full == null) {
+            Matcher t = TITLE_TAG.matcher(html);
+            if (t.find()) full = clean(t.group(1));
+        }
+        if (full != null) {
+            full = full.replaceAll("\\s*\\|\\s*Rig-Radio.*$", "").trim();
+            int dash = full.lastIndexOf(" — ");
+            if (dash < 0) dash = full.lastIndexOf(" - ");
+            if (dash > 0) {
+                title = full.substring(0, dash).trim();
+                artist = full.substring(dash + 3).trim();
+            } else {
+                title = full;
+            }
+        }
+        if (title == null || title.isEmpty()) title = "Rig-Radio track";
+        Song s = new Song(link, id, title, artist, meta(html, "og:image"));
+        s.directAudio = audio;
+        return s;
     }
 
     private static Song resolveOrThrow(String link) throws IOException {

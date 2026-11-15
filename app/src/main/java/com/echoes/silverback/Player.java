@@ -333,7 +333,7 @@ public final class Player {
 
             @Override
             public void onPageFinished(WebView view, String url) {
-                if (url != null && url.contains("/embed/")) {
+                if (url != null && (url.contains("/embed/") || url.contains("/silverback"))) {
                     log("Suno player opened" + (view.isAttachedToWindow() ? " (on screen)" : " (NOT on screen)"));
                     view.evaluateJavascript(KEEP_VISIBLE_JS, null);
                     view.evaluateJavascript(startJs(generation), null);
@@ -376,8 +376,20 @@ public final class Player {
         durSec = 0;
         lastState = "";
         loadStartedAt = System.currentTimeMillis();
-        log("Opening Suno player: " + s.embedUrl());
-        engine().loadUrl(s.embedUrl());
+        if (!s.directAudio.isEmpty()) {
+            // Direct MP3 (e.g. Rig-Radio): a tiny page with an <audio> and a play/pause button,
+            // so pause, skip, volume and song-end work exactly like the Suno player.
+            log("Opening audio: " + s.directAudio);
+            String src = android.text.TextUtils.htmlEncode(s.directAudio);
+            String html = "<!doctype html><html><body style='background:#000'>"
+                    + "<audio id='a' src='" + src + "' preload='auto' autoplay></audio>"
+                    + "<button onclick=\"var a=document.getElementById('a');if(a.paused)a.play();else a.pause();\">play</button>"
+                    + "</body></html>";
+            engine().loadDataWithBaseURL("https://rig-radio.ai/silverback", html, "text/html", "utf-8", "https://rig-radio.ai/silverback");
+        } else {
+            log("Opening Suno player: " + s.embedUrl());
+            engine().loadUrl(s.embedUrl());
+        }
         PlayerService.startOrUpdate(ctx);
         main.removeCallbacks(poll);
         main.postDelayed(poll, 1000);

@@ -15,6 +15,8 @@ public final class Song {
     /** Discord user who requested it (empty when you added it yourself). */
     public String requesterId = "";
     public String requesterName = "";
+    /** Direct audio file (Rig-Radio etc.). Empty = play through Suno's embed player. */
+    public String directAudio = "";
 
     public Song(String link, String id, String title, String artist, String imageUrl) {
         this.link = link;
@@ -37,6 +39,7 @@ public final class Song {
         o.put("image", imageUrl == null ? "" : imageUrl);
         o.put("reqId", requesterId);
         o.put("reqName", requesterName);
+        o.put("audio", directAudio);
         return o;
     }
 
@@ -52,6 +55,7 @@ public final class Song {
                 image.isEmpty() ? null : image);
         s.requesterId = o.optString("reqId", "");
         s.requesterName = o.optString("reqName", "");
+        s.directAudio = o.optString("audio", "");
         return s;
     }
 }

@@ -195,8 +195,8 @@ final class DiscordWatcher {
         } else if ("MESSAGE_CREATE".equals(type)) {
             String ch = d.optString("channel_id");
             if (!channel().equals(ch)) {
-                if (d.optString("content", "").toLowerCase().contains("suno.")) {
-                    log("Suno link seen in a different channel (" + ch + ") — not the one SilverBack watches");
+                if (!SunoResolver.extractLinks(d.optString("content", "")).isEmpty()) {
+                    log("Song link seen in a different channel (" + ch + ") — not the one SilverBack watches");
                 }
                 return;
             }
@@ -208,7 +208,7 @@ final class DiscordWatcher {
                         + " had no text — is Message Content Intent on?");
                 return;
             }
-            if (!content.toLowerCase().contains("suno.")) return;
+            if (SunoResolver.extractLinks(content).isEmpty()) return;
             String uid = author != null ? author.optString("id") : "unknown";
             String name = author != null ? author.optString("username") : "someone";
             String msgId = d.optString("id");
