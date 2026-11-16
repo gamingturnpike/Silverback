@@ -164,10 +164,14 @@ public class QueuePanel extends LinearLayout implements Player.Listener {
         touch.attachToRecyclerView(list);
         root.addView(list, new LinearLayout.LayoutParams(-1, 0, 1));
 
-        TextView clear = button("CLEAR UP NEXT", v -> player.clearUpNext());
+        // Bottom row: shuffle + clear
+        LinearLayout bottom = new LinearLayout(ctx);
+        bottom.setOrientation(LinearLayout.HORIZONTAL);
         LinearLayout.LayoutParams xlp = new LinearLayout.LayoutParams(-1, -2);
         xlp.topMargin = dp(8);
-        root.addView(clear, xlp);
+        root.addView(bottom, xlp);
+        bottom.addView(button("🔀 SHUFFLE", v -> player.shuffle()), weight());
+        bottom.addView(button("CLEAR UP NEXT", v -> player.clearUpNext()), weight());
     }
 
     @Override
@@ -265,7 +269,7 @@ public class QueuePanel extends LinearLayout implements Player.Listener {
             ImageView art = new ImageView(ctx);
             art.setScaleType(ImageView.ScaleType.CENTER_CROP);
             art.setBackgroundColor(Color.parseColor("#2A0A0C"));
-            LinearLayout.LayoutParams alp = new LinearLayout.LayoutParams(dp(44), dp(44));
+            LinearLayout.LayoutParams alp = new LinearLayout.LayoutParams(dp(56), dp(56));
             alp.leftMargin = dp(4);
             r.addView(art, alp);
 
@@ -274,24 +278,30 @@ public class QueuePanel extends LinearLayout implements Player.Listener {
             LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(0, -2, 1);
             tlp.leftMargin = dp(10);
             r.addView(t, tlp);
-            TextView title = text("", 15, Color.WHITE, true);
+            TextView title = text("", 16, Color.WHITE, true);
             title.setSingleLine(true);
             title.setEllipsize(TextUtils.TruncateAt.END);
             t.addView(title);
-            TextView artist = text("", 12, Color.parseColor("#9A9A9A"), false);
+            TextView artist = text("", 13, Color.parseColor("#9A9A9A"), false);
             artist.setSingleLine(true);
             t.addView(artist);
 
+            TextView top = icon("⤒", null, true);
             TextView up = icon("▲", null, true);
             TextView down = icon("▼", null, true);
             TextView play = icon("▶", null, true);
             TextView remove = icon("✕", null, true);
+            r.addView(top);
             r.addView(up);
             r.addView(down);
             r.addView(play);
             r.addView(remove);
 
             Row h = new Row(r, num, art, title, artist, play, remove, handle);
+            top.setOnClickListener(v -> {
+                int p = h.getBindingAdapterPosition();
+                if (p > 0) player.move(p, 0);
+            });
             up.setOnClickListener(v -> {
                 int p = h.getBindingAdapterPosition();
                 if (p > 0) player.move(p, p - 1);
@@ -320,7 +330,8 @@ public class QueuePanel extends LinearLayout implements Player.Listener {
             Song q = player.queue.get(pos);
             h.num.setText(String.valueOf(pos + 1));
             h.title.setText(q.title);
-            h.artist.setText(q.artist);
+            String who = q.requesterName == null || q.requesterName.isEmpty() ? "" : "requested by " + q.requesterName;
+            h.artist.setText(q.artist.isEmpty() ? who : (who.isEmpty() ? q.artist : q.artist + "  ·  " + who));
             h.art.setImageBitmap(q.cover);
         }
     }
@@ -406,9 +417,9 @@ public class QueuePanel extends LinearLayout implements Player.Listener {
     }
 
     private TextView icon(String glyph, View.OnClickListener l, boolean enabled) {
-        TextView b = text(glyph, 17, enabled ? Color.WHITE : Color.parseColor("#444444"), true);
+        TextView b = text(glyph, 19, enabled ? Color.WHITE : Color.parseColor("#444444"), true);
         b.setGravity(Gravity.CENTER);
-        b.setLayoutParams(new LinearLayout.LayoutParams(dp(34), dp(44)));
+        b.setLayoutParams(new LinearLayout.LayoutParams(dp(38), dp(52)));
         if (enabled) b.setOnClickListener(l);
         return b;
     }

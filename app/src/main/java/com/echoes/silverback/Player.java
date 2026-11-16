@@ -629,6 +629,12 @@ public final class Player {
         playNext();
     }
 
+    public void shuffle() {
+        java.util.Collections.shuffle(queue);
+        save();
+        changed();
+    }
+
     public void clearUpNext() {
         queue.clear();
         save();

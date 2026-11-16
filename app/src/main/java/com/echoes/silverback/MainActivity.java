@@ -434,9 +434,9 @@ public class MainActivity extends Activity implements Player.Listener {
     private void toggleQueue(boolean show) {
         if (queuePanel == null) {
             queuePanel = new QueuePanel(this, () -> toggleQueue(false));
-            int w = (int) (getResources().getDisplayMetrics().widthPixels * 0.42f);
+            int w = (int) (getResources().getDisplayMetrics().widthPixels * 0.55f);
             FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
-                    Math.max(w, (int) (340 * getResources().getDisplayMetrics().density)),
+                    Math.max(w, (int) (420 * getResources().getDisplayMetrics().density)),
                     FrameLayout.LayoutParams.MATCH_PARENT, android.view.Gravity.END);
             ((FrameLayout) findViewById(R.id.root)).addView(queuePanel, lp);
             queuePanel.setVisibility(View.GONE);
