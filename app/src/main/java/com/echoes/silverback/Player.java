@@ -106,7 +106,7 @@ public final class Player {
     private boolean started;      // audio has actually begun
     private boolean userPaused;
     private boolean audioPaused = true;
-    private double posSec, durSec;
+    private double posSec, durSec, lastPosSec;
     private long loadStartedAt;
 
     private final Runnable poll = new Runnable() {
@@ -476,6 +476,7 @@ public final class Player {
         audioPaused = true;
         posSec = 0;
         durSec = 0;
+        lastPosSec = 0;
         lastState = "";
         loadStartedAt = System.currentTimeMillis();
         if (!s.directAudio.isEmpty()) {
@@ -524,7 +525,14 @@ public final class Player {
             log("Audio " + state);
         }
         if (posSec > 0) started = true;
-        if (ended && started) {
+        // A song counts as finished if the player says so, OR it stopped right at the end,
+        // OR it jumped back to the start after being at the end (some players reset instead of "ending").
+        boolean atEnd = durSec > 1 && posSec >= durSec - 1.0;
+        boolean wasAtEnd = durSec > 1 && lastPosSec >= durSec - 2.5;
+        boolean resetAfterEnd = wasAtEnd && posSec < 2 && audioPaused;
+        lastPosSec = posSec;
+        if (started && (ended || (atEnd && audioPaused) || resetAfterEnd)) {
+            log("Song finished — next");
             songEnded();
             return;
         }
