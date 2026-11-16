@@ -192,7 +192,7 @@ public class MainActivity extends Activity implements Player.Listener {
             coverPlayer = null;
         }
         if (url == null) {
-            tv.setVisibility(View.INVISIBLE);
+            tv.setAlpha(0.01f);
             return;
         }
         if (tv.getSurfaceTextureListener() == null) {
@@ -238,16 +238,16 @@ public class MainActivity extends Activity implements Player.Listener {
             mp.setOnVideoSizeChangedListener((m, vw, vh) -> cropToSquare(tv, vw, vh));
             mp.setOnPreparedListener(m -> {
                 m.start();
-                tv.setVisibility(View.VISIBLE);
+                tv.setAlpha(1f);
             });
             mp.setOnErrorListener((m, a, b) -> {
-                tv.setVisibility(View.INVISIBLE);
+                tv.setAlpha(0.01f);
                 return true;
             });
             mp.prepareAsync();
             coverPlayer = mp;
         } catch (Exception e) {
-            tv.setVisibility(View.INVISIBLE);
+            tv.setAlpha(0.01f);
         }
     }
 
