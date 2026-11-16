@@ -59,6 +59,32 @@ final class DiscordWatcher {
     private DiscordWatcher(Context ctx) {
         this.ctx = ctx;
         this.prefs = ctx.getSharedPreferences("silverback", Context.MODE_PRIVATE);
+        Player.get(ctx).addStartListener(this::postNowPlaying);
+    }
+
+    /** Posts "Now Playing" in the watched channel when a song starts. */
+    private void postNowPlaying(Song s) {
+        if (!connected) return;
+        StringBuilder msg = new StringBuilder("🎶 **Now Playing:** ").append(s.title);
+        if (!s.artist.isEmpty()) msg.append(" — ").append(s.artist);
+        if (s.link != null && !s.link.isEmpty()) msg.append("\n").append(s.link);
+        send(channel(), msg.toString());
+    }
+
+    private void send(String channelId, String text) {
+        try {
+            JSONObject body = new JSONObject()
+                    .put("content", text)
+                    .put("allowed_mentions", new JSONObject().put("parse", new org.json.JSONArray()));
+            Request r = new Request.Builder()
+                    .url("https://discord.com/api/v10/channels/" + channelId + "/messages")
+                    .header("Authorization", "Bot " + token())
+                    .post(okhttp3.RequestBody.create(body.toString(), JSON))
+                    .build();
+            http.newCall(r).enqueue(restCallback("reply"));
+        } catch (Exception ex) {
+            log("Now Playing post failed: " + ex.getMessage());
+        }
     }
 
     String token() { return prefs.getString("discord_token", ""); }

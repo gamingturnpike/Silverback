@@ -176,6 +176,15 @@ public final class Player {
 
     public void removeAddListener(AddListener l) { addListeners.remove(l); }
 
+    /** Called (main thread) when a new song starts playing. */
+    public interface StartListener {
+        void onSongStarted(Song s);
+    }
+
+    private final CopyOnWriteArraySet<StartListener> startListeners = new CopyOnWriteArraySet<>();
+
+    public void addStartListener(StartListener l) { startListeners.add(l); }
+
     public void removeListener(Listener l) { listeners.remove(l); }
 
     /** Pulls every Suno link out of shared/pasted text and queues it. Returns how many were found. */
@@ -420,6 +429,7 @@ public final class Player {
             engine().loadUrl(s.embedUrl());
         }
         PlayerService.startOrUpdate(ctx);
+        for (StartListener l : startListeners) l.onSongStarted(s);
         main.removeCallbacks(poll);
         main.postDelayed(poll, 1000);
         changed();
