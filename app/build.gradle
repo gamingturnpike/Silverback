@@ -10,8 +10,8 @@ android {
         applicationId 'com.echoes.silverback'
         minSdk 29
         targetSdk 35
-        versionCode 41
-        versionName '3.9.1'
+        versionCode 42
+        versionName '3.9.2'
     }
 
     buildTypes {

@@ -343,6 +343,11 @@ public class MainActivity extends Activity implements Player.Listener {
         LinearLayout box = new LinearLayout(this);
         box.setOrientation(LinearLayout.VERTICAL);
         box.setPadding(pad, pad / 2, pad, 0);
+        // Status + recent activity at the top, everything scrolls together
+        TextView statusView = new TextView(this);
+        statusView.setTextSize(14);
+        box.addView(statusView);
+
         EditText token = new EditText(this);
         token.setHint("Bot token");
         token.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
@@ -403,8 +408,8 @@ public class MainActivity extends Activity implements Player.Listener {
         String status = !dw.isRunning() ? "Off" : dw.isConnected() ? "On — connected" : "On — connecting";
         new AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
                 .setTitle("Discord link watcher  (v" + BuildConfig.VERSION_NAME + ")")
-                .setMessage("Status: " + status + "\nSuno links posted in this channel go straight into the queue.\n\nRecent:\n" + player.discordLog())
-                .setView(box)
+                .setView(wrapScroll(box, statusView,
+                        "Status: " + status + "\nRecent:\n" + player.discordLog()))
                 .setPositiveButton("Save & connect", (d, w) -> {
                     String tk = token.getText().toString().replaceAll("\\s", "").replaceFirst("^(?i)bot", "");
                     dw.save(tk, channel.getText().toString().replaceAll("\\D", ""));
@@ -442,6 +447,13 @@ public class MainActivity extends Activity implements Player.Listener {
             queuePanel.setVisibility(View.GONE);
         }
         queuePanel.setVisibility(show ? View.VISIBLE : View.GONE);
+    }
+
+    private View wrapScroll(LinearLayout box, TextView statusView, String status) {
+        statusView.setText(status);
+        ScrollView sv = new ScrollView(this);
+        sv.addView(box);
+        return sv;
     }
 
     private void goMini() {
