@@ -170,7 +170,6 @@ public class QueuePanel extends LinearLayout implements Player.Listener {
         LinearLayout.LayoutParams xlp = new LinearLayout.LayoutParams(-1, -2);
         xlp.topMargin = dp(8);
         root.addView(bottom, xlp);
-        bottom.addView(button("🔀 SHUFFLE", v -> player.shuffle()), weight());
         bottom.addView(button("CLEAR UP NEXT", v -> player.clearUpNext()), weight());
     }
 
