@@ -91,6 +91,61 @@ final class DiscordWatcher {
 
     String channel() { return prefs.getString("discord_channel", DEFAULT_CHANNEL); }
 
+    /** Discord usernames that can drop as many songs as they want (comma separated). */
+    String unlimitedNames() { return prefs.getString("unlimited_names", ""); }
+
+    void saveUnlimitedNames(String names) { prefs.edit().putString("unlimited_names", names.trim()).apply(); }
+
+    // The bot's owner (whoever created it on the developer site) is always unlimited.
+    private final java.util.Set<String> ownerIds = new java.util.HashSet<>();
+
+    private boolean isUnlimited(String uid, String username) {
+        if (ownerIds.contains(uid)) return true;
+        for (String n : unlimitedNames().split(",")) {
+            String t = n.trim().replace("@", "");
+            if (!t.isEmpty() && t.equalsIgnoreCase(username)) return true;
+        }
+        return false;
+    }
+
+    private void loadOwner() {
+        Request r = new Request.Builder()
+                .url("https://discord.com/api/v10/oauth2/applications/@me")
+                .header("Authorization", "Bot " + token())
+                .build();
+        http.newCall(r).enqueue(new okhttp3.Callback() {
+            @Override
+            public void onFailure(okhttp3.Call call, java.io.IOException e) {
+            }
+
+            @Override
+            public void onResponse(okhttp3.Call call, Response resp) {
+                try {
+                    JSONObject app = new JSONObject(resp.body().string());
+                    java.util.Set<String> ids = new java.util.HashSet<>();
+                    JSONObject owner = app.optJSONObject("owner");
+                    if (owner != null) ids.add(owner.optString("id"));
+                    JSONObject team = app.optJSONObject("team");
+                    if (team != null && team.optJSONArray("members") != null) {
+                        for (int i = 0; i < team.getJSONArray("members").length(); i++) {
+                            JSONObject u = team.getJSONArray("members").getJSONObject(i).optJSONObject("user");
+                            if (u != null) ids.add(u.optString("id"));
+                        }
+                    }
+                    String ownerName = owner != null ? owner.optString("username") : "?";
+                    main.post(() -> {
+                        ownerIds.clear();
+                        ownerIds.addAll(ids);
+                        log("Bot owner " + ownerName + " has no song limit");
+                    });
+                } catch (Exception ignored) {
+                } finally {
+                    resp.close();
+                }
+            }
+        });
+    }
+
     boolean isRunning() { return wanted; }
 
     boolean isConnected() { return connected; }
@@ -217,6 +272,7 @@ final class DiscordWatcher {
             log("Connected as " + (user != null ? user.optString("username") : "bot")
                     + " — watching channel " + channel());
             toast("Discord connected as " + (user != null ? user.optString("username") : "bot"));
+            loadOwner();
             PlayerService.updateIfRunning(ctx);
         } else if ("MESSAGE_CREATE".equals(type)) {
             String ch = d.optString("channel_id");
@@ -238,12 +294,12 @@ final class DiscordWatcher {
             String uid = author != null ? author.optString("id") : "unknown";
             String name = author != null ? author.optString("username") : "someone";
             String msgId = d.optString("id");
-            if (!Player.get(ctx).requestsOpen()) {
+            if (!Player.get(ctx).requestsOpen() && !isUnlimited(uid, name)) {
                 log("Requests are OFF — ignored link from " + name);
                 reply(ch, msgId, uid, "<@" + uid + "> 🚫 requests are closed right now.");
                 return;
             }
-            Player.get(ctx).addFromDiscord(content, uid, name, new Player.DiscordResult() {
+            Player.get(ctx).addFromDiscord(content, uid, name, isUnlimited(uid, name), new Player.DiscordResult() {
                 @Override
                 public void added(Song song, int extraLinks) {
                     react(ch, msgId, "✅");

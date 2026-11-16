@@ -241,8 +241,21 @@ public final class Player {
 
     /** Links posted in Discord, limited to N songs per person at a time. */
     public void addFromDiscord(String text, String userId, String userName, DiscordResult result) {
+        addFromDiscord(text, userId, userName, false, result);
+    }
+
+    /** unlimited = the DJ / bot owner: no per-person limit. */
+    public void addFromDiscord(String text, String userId, String userName, boolean unlimited, DiscordResult result) {
         List<String> links = SunoResolver.extractLinks(text);
         if (links.isEmpty()) return;
+        if (unlimited) {
+            log("Link(s) from " + userName + " (no limit): " + links.size());
+            for (String link : links) {
+                pendingRequesters.merge(userId, 1, Integer::sum);
+                add(link, userId, userName, result, 0);
+            }
+            return;
+        }
         int room = perPersonLimit() - songsFor(userId);
         if (room <= 0) {
             log("Skipped link from " + userName + " — already has " + perPersonLimit() + " in the queue");

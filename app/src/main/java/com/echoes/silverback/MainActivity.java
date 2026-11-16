@@ -385,6 +385,13 @@ public class MainActivity extends Activity implements Player.Listener {
         lim.addView(plus);
         box.addView(lim);
 
+        // People with no limit (the bot's owner is always unlimited)
+        EditText vip = new EditText(this);
+        vip.setHint("No-limit users: Discord usernames, comma separated");
+        vip.setText(dw.unlimitedNames());
+        vip.setTextSize(14);
+        box.addView(vip);
+
         // Requests on/off
         android.widget.Switch req = new android.widget.Switch(this);
         req.setText("Accept song requests from Discord");
@@ -401,6 +408,7 @@ public class MainActivity extends Activity implements Player.Listener {
                 .setPositiveButton("Save & connect", (d, w) -> {
                     String tk = token.getText().toString().replaceAll("\\s", "").replaceFirst("^(?i)bot", "");
                     dw.save(tk, channel.getText().toString().replaceAll("\\D", ""));
+                    dw.saveUnlimitedNames(vip.getText().toString());
                     Toast.makeText(this, "Discord: connecting…", Toast.LENGTH_SHORT).show();
                     dw.start();
                 })
