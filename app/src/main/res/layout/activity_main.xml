@@ -242,7 +242,7 @@
             <TextView android:id="@+id/btn_clear" style="@style/StageButton" android:text="CLEAR" android:visibility="gone" />
             <TextView android:id="@+id/btn_vol_down" style="@style/StageButton" android:text="VOL −" />
             <TextView android:id="@+id/btn_vol_up" style="@style/StageButton" android:text="VOL +" />
-            <TextView android:id="@+id/btn_requests" style="@style/StageButton" android:text="REQUESTS ON" />
+            <TextView android:id="@+id/btn_requests" style="@style/StageButton" android:text="REQUESTS ON" android:visibility="gone" />
             <TextView android:id="@+id/btn_outro" style="@style/StageButton" android:text="OUTRO" />
         </LinearLayout>
     </FrameLayout>

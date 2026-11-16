@@ -384,6 +384,15 @@ public class MainActivity extends Activity implements Player.Listener {
         lim.addView(num);
         lim.addView(plus);
         box.addView(lim);
+
+        // Requests on/off
+        android.widget.Switch req = new android.widget.Switch(this);
+        req.setText("Accept song requests from Discord");
+        req.setTextSize(15);
+        req.setChecked(player.requestsOpen());
+        req.setPadding(0, pad / 2, 0, 0);
+        req.setOnCheckedChangeListener((b, on) -> player.setRequestsOpen(on));
+        box.addView(req);
         String status = !dw.isRunning() ? "Off" : dw.isConnected() ? "On — connected" : "On — connecting";
         new AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
                 .setTitle("Discord link watcher  (v" + BuildConfig.VERSION_NAME + ")")
