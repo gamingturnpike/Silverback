@@ -63,14 +63,26 @@ public final class Player {
     }
 
     public void setVolumePercent(int pct) {
-        volume = Math.max(0, Math.min(100, pct)) / 100f;
+        volume = Math.max(0, Math.min(MAX_VOLUME_PCT, pct)) / 100f;
         prefs.edit().putFloat("volume", volume).apply();
         if (web != null) web.evaluateJavascript(volumeJs(), null);
         changed();
     }
 
+    /** Up to 300%: above 100% the music is boosted with a gain stage inside the player page. */
+    public static final int MAX_VOLUME_PCT = 300;
+
     private String volumeJs() {
-        return "document.querySelectorAll('audio').forEach(function(a){if(Math.abs(a.volume-" + volume + ")>0.001)a.volume=" + volume + ";});";
+        float v = volume;
+        return "(function(v){document.querySelectorAll('audio').forEach(function(a){"
+                + "var el=Math.min(1,v),boost=Math.max(1,v);"
+                + "if(boost>1&&!a.__sbGain){try{var C=window.AudioContext||window.webkitAudioContext;"
+                + "var ctx=window.__sbCtx||(window.__sbCtx=new C());var src=ctx.createMediaElementSource(a);"
+                + "var g=ctx.createGain();src.connect(g);g.connect(ctx.destination);a.__sbGain=g;}catch(e){a.__sbGain=null;a.__sbNoBoost=1;}}"
+                + "if(window.__sbCtx&&window.__sbCtx.state!=='running'){try{window.__sbCtx.resume();}catch(e){}}"
+                + "if(a.__sbGain){a.__sbGain.gain.value=boost;}"
+                + "if(Math.abs(a.volume-el)>0.001)a.volume=el;"
+                + "});})(" + v + ");";
     }
 
     private static Player instance;
@@ -159,7 +171,7 @@ public final class Player {
     private Player(Context ctx) {
         this.ctx = ctx;
         this.prefs = ctx.getSharedPreferences("silverback", Context.MODE_PRIVATE);
-        this.volume = prefs.getFloat("volume", 1f);
+        this.volume = Math.min(MAX_VOLUME_PCT / 100f, prefs.getFloat("volume", 1f));
         restore();
     }
 

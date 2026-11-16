@@ -122,7 +122,7 @@ public class QueuePanel extends LinearLayout implements Player.Listener {
         TextView volLabel = text("VOLUME " + player.volumePercent() + "%", 12, Color.parseColor("#B5B5B5"), true);
         volRow.addView(volLabel, new LinearLayout.LayoutParams(dp(110), -2));
         SeekBar vol = new SeekBar(ctx);
-        vol.setMax(100);
+        vol.setMax(Player.MAX_VOLUME_PCT);
         vol.setProgress(player.volumePercent());
         vol.setProgressTintList(android.content.res.ColorStateList.valueOf(RED));
         vol.setThumbTintList(android.content.res.ColorStateList.valueOf(RED));
