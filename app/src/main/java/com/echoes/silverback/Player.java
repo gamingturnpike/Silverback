@@ -293,12 +293,64 @@ public final class Player {
             web.evaluateJavascript(STOP_JS, null);
             web.loadUrl("about:blank");
         }
-        if (current != null) queue.add(0, current);
+        if (current != null && !isOutro(current)) queue.add(0, current);
         current = null;
         started = false;
         audioPaused = true;
         save();
         log("SilverBack closed");
+        changed();
+    }
+
+    // ---- Outro ("Shows Over") ----
+    private static final String OUTRO_ID = "silverback-outro";
+
+    static boolean isOutro(Song s) {
+        return s != null && OUTRO_ID.equals(s.id);
+    }
+
+    /** OUTRO button: plays Shows Over right now; when it finishes the show stops (queue is kept). */
+    public void playOutro() {
+        Song o = new Song("", OUTRO_ID, "Shows Over", "Jack White", null);
+        o.directAudio = "file:///android_asset/outro.mp3";
+        try (java.io.InputStream in = ctx.getAssets().open("outro_cover.jpg")) {
+            o.cover = android.graphics.BitmapFactory.decodeStream(in);
+        } catch (Exception ignored) {
+        }
+        log("OUTRO pressed — playing Shows Over");
+        queue.add(0, o);
+        playNext();
+    }
+
+    /** A song finished by itself: after the outro, stop; otherwise play the next one. */
+    private void songEnded() {
+        if (isOutro(current)) {
+            log("Outro finished — show's over");
+            main.removeCallbacks(poll);
+            generation++;
+            if (web != null) {
+                web.evaluateJavascript(STOP_JS, null);
+                web.loadUrl("about:blank");
+            }
+            current = null;
+            started = false;
+            audioPaused = true;
+            save();
+            changed();
+            PlayerService.updateIfRunning(ctx);
+            return;
+        }
+        playNext();
+    }
+
+    // ---- requests (submissions) on/off ----
+    public boolean requestsOpen() {
+        return prefs.getBoolean("requests_open", true);
+    }
+
+    public void setRequestsOpen(boolean open) {
+        prefs.edit().putBoolean("requests_open", open).apply();
+        log("Requests " + (open ? "ON" : "OFF"));
         changed();
     }
 
@@ -423,7 +475,9 @@ public final class Player {
                     + "<audio id='a' src='" + src + "' preload='auto' autoplay></audio>"
                     + "<button onclick=\"var a=document.getElementById('a');if(a.paused)a.play();else a.pause();\">play</button>"
                     + "</body></html>";
-            engine().loadDataWithBaseURL("https://rig-radio.ai/silverback", html, "text/html", "utf-8", "https://rig-radio.ai/silverback");
+            String base = s.directAudio.startsWith("file:///android_asset/")
+                    ? "file:///android_asset/silverback" : "https://rig-radio.ai/silverback";
+            engine().loadDataWithBaseURL(base, html, "text/html", "utf-8", base);
         } else {
             log("Opening Suno player: " + s.embedUrl());
             engine().loadUrl(s.embedUrl());
@@ -459,7 +513,7 @@ public final class Player {
         }
         if (posSec > 0) started = true;
         if (ended && started) {
-            playNext();
+            songEnded();
             return;
         }
         if (!started) checkStuck();
@@ -569,7 +623,7 @@ public final class Player {
         @JavascriptInterface
         public void ended(int gen) {
             main.post(() -> {
-                if (gen == generation && current != null) playNext();
+                if (gen == generation && current != null) songEnded();
             });
         }
     }
@@ -586,8 +640,8 @@ public final class Player {
     private void save() {
         try {
             JSONArray a = new JSONArray();
-            if (current != null) a.put(current.toJson());
-            for (Song s : queue) a.put(s.toJson());
+            if (current != null && !isOutro(current)) a.put(current.toJson());
+            for (Song s : queue) if (!isOutro(s)) a.put(s.toJson());
             prefs.edit().putString("queue", a.toString()).apply();
         } catch (Exception ignored) {
         }

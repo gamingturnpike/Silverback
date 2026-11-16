@@ -238,6 +238,11 @@ final class DiscordWatcher {
             String uid = author != null ? author.optString("id") : "unknown";
             String name = author != null ? author.optString("username") : "someone";
             String msgId = d.optString("id");
+            if (!Player.get(ctx).requestsOpen()) {
+                log("Requests are OFF — ignored link from " + name);
+                reply(ch, msgId, uid, "<@" + uid + "> 🚫 requests are closed right now.");
+                return;
+            }
             Player.get(ctx).addFromDiscord(content, uid, name, new Player.DiscordResult() {
                 @Override
                 public void added(Song song, int extraLinks) {

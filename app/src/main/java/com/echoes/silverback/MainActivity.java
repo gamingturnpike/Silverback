@@ -98,6 +98,12 @@ public class MainActivity extends Activity implements Player.Listener {
         findViewById(R.id.btn_discord).setOnClickListener(v -> discordSettings());
         findViewById(R.id.btn_paste).setOnClickListener(v -> { pasteLink(); bumpControls(); });
         findViewById(R.id.btn_clear).setOnClickListener(v -> { player.clearUpNext(); bumpControls(); });
+        findViewById(R.id.btn_outro).setOnClickListener(v -> { player.playOutro(); bumpControls(); });
+        findViewById(R.id.btn_requests).setOnClickListener(v -> {
+            player.setRequestsOpen(!player.requestsOpen());
+            Toast.makeText(this, "Requests " + (player.requestsOpen() ? "ON" : "OFF"), Toast.LENGTH_SHORT).show();
+            bumpControls();
+        });
         findViewById(R.id.btn_vol_down).setOnClickListener(v -> { changeVolume(-10); bumpControls(); });
         findViewById(R.id.btn_vol_up).setOnClickListener(v -> { changeVolume(10); bumpControls(); });
 
@@ -497,6 +503,7 @@ public class MainActivity extends Activity implements Player.Listener {
         }
         if (n > 2) sb.append("\n+").append(n - 2).append(" more");
         upNext.setText(n == 0 ? "—" : sb.toString());
+        ((TextView) findViewById(R.id.btn_requests)).setText(player.requestsOpen() ? "REQUESTS ON" : "REQUESTS OFF");
         updateProgress();
         if (debugPanel.getVisibility() == View.VISIBLE) refreshDebug();
     }
